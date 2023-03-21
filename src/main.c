@@ -60,6 +60,7 @@ void _putc(const char c)
 	USART2.DR = c;
 }
 
+//affiche un entier sur 2 digits
 void _puts(const char *c)
 {
 	int len = strlen(c);
@@ -68,10 +69,13 @@ void _puts(const char *c)
 		_putc(c[i]);
 	}
 }
-
+//affiche le carac entré au clavier
 char _getc()
 {
 	/* À compléter */
+	while ((USART2.SR & 0x20)==0);
+	char c = USART2.DR ;
+	return c;
 }
 
 /* Initialisation du timer système (systick) */
@@ -154,7 +158,7 @@ int main()
 	printf("\r\n");
 
 	init_LD2();
-	//exo 1.1
+	//exo 1.1.1
 	//init_PB();
 	// quand bouton pressé, la led s'allume
 	//  while (1){
@@ -166,7 +170,7 @@ int main()
 	//  	}
 	//  }
 
-	// Exo1.2 en utilisant tempo la led clignote
+	// Exo1.1.2 en utilisant tempo la led clignote
 	/*
 	while (1)
 	{
@@ -177,12 +181,20 @@ int main()
 		tempo_500ms();
 	}
 */
-	//exo 1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
-	while(1){
-		if(button_pressed()){
-			clignote_2sec();
-		}
+	// exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
+	// while(1){
+		// if(button_pressed()){
+			// clignote_2sec();
+		// }
+	// }
+
+	//exo 1.2
+	while (1)
+	{
+		char c = _getc();
+		_putc(c);
 	}
+	
 
 
 	return 0;
