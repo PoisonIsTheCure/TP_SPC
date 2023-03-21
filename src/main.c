@@ -12,14 +12,25 @@ void init_LD2(){
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
 	RCC.AHB1ENR |= 0x01;
-	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400;
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400; // ici on met le moder de 5eme bit a 1
 	GPIOA.OTYPER &= ~(0x1<<5);
 	GPIOA.OSPEEDR |= 0x03<<10;
 	GPIOA.PUPDR &= 0xFFFFF3FF;
 }
 
+
+/*
+UMp23
+Bouton Bleu = PC13
+cherche a modifier tout les registre utile avec RM a partir de la p187
+*/
 void init_PB(){
 	/* GPIOC.MODER = ... */
+	RCC.AHB1ENR |= 0x04; // On initialise la clock de GPIOC (RM page 141)
+	GPIOC.MODER = 0xF3FFFFFF; // On met le moder en input mode (change l octet qui comprend le n13 en 00)
+	//GPIOC.OTYPER &= ~(0x1<<13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
+	//GPIOA.OSPEEDR |= 0x03<<26;  // on met le 26-27ime bits a 11 , donc high speed mode
+	GPIOC.PUPDR &= 0xF3FFFFFF; // Mettre en pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
 }
 
 void tempo_500ms(){
@@ -91,6 +102,18 @@ int _async_puts(const char* s) {
 	/* À compléter */
 }
 
+int button_pressed(){
+	return ((GPIOC.IDR >> 13) & 0x01)==0; // apparement ,quand le bouton est poussé, sa valeur est a 0
+}
+
+void turn_led_on(){
+	GPIOA.ODR |= 0x00000020;
+}
+
+void turn_led_off(){
+	GPIOA.ODR &= ~(0x1<<5);
+}
+
 int main() {
   
 	printf("\e[2J\e[1;1H\r\n");
@@ -104,7 +127,21 @@ int main() {
 	printf("APB2CLK= %9lu Hz\r\n",get_APB2CLK());
 	printf("\r\n");
 
-	while (1);
+	init_LD2();
+	init_PB();
+ //quand bouton pressé, la led s'allume
+	while (1){
+		if (button_pressed()){
+			turn_led_on();
+		}
+		else {
+			turn_led_off();
+		}
+	}
 	return 0;
+	
+	
+	
+
 }
 
