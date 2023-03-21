@@ -128,6 +128,17 @@ void turn_led_off()
 	GPIOA.ODR &= ~(0x1 << 5);
 }
 
+void clignote_2sec(){
+	for (int i = 0; i < 2; i++)
+	{
+		turn_led_on();
+		tempo_500ms();
+		turn_led_off();
+		tempo_500ms();
+	}
+	
+}
+
 int main()
 {
 
@@ -143,6 +154,7 @@ int main()
 	printf("\r\n");
 
 	init_LD2();
+	//exo 1.1
 	//init_PB();
 	// quand bouton pressé, la led s'allume
 	//  while (1){
@@ -154,7 +166,8 @@ int main()
 	//  	}
 	//  }
 
-	// en utilisant tempo la led clignote
+	// Exo1.2 en utilisant tempo la led clignote
+	/*
 	while (1)
 	{
 		tempo_500ms();
@@ -163,5 +176,14 @@ int main()
 		turn_led_off();
 		tempo_500ms();
 	}
+*/
+	//exo 1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
+	while(1){
+		if(button_pressed()){
+			clignote_2sec();
+		}
+	}
+
+
 	return 0;
 }
