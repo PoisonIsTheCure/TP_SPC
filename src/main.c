@@ -6,75 +6,85 @@
 #include "sys/init.h"
 #include "sys/clock.h"
 
-static volatile char c=0;
+static volatile char c = 0;
 
-void init_LD2(){
+void init_LD2()
+{
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
 	RCC.AHB1ENR |= 0x01;
 	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400; // ici on met le moder de 5eme bit a 1
-	GPIOA.OTYPER &= ~(0x1<<5);
-	GPIOA.OSPEEDR |= 0x03<<10;
+	GPIOA.OTYPER &= ~(0x1 << 5);
+	GPIOA.OSPEEDR |= 0x03 << 10;
 	GPIOA.PUPDR &= 0xFFFFF3FF;
 }
-
 
 /*
 UMp23
 Bouton Bleu = PC13
 cherche a modifier tout les registre utile avec RM a partir de la p187
 */
-void init_PB(){
+void init_PB()
+{
 	/* GPIOC.MODER = ... */
-	RCC.AHB1ENR |= 0x04; // On initialise la clock de GPIOC (RM page 141)
+	RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
 	GPIOC.MODER = 0xF3FFFFFF; // On met le moder en input mode (change l octet qui comprend le n13 en 00)
-	//GPIOC.OTYPER &= ~(0x1<<13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
-	//GPIOA.OSPEEDR |= 0x03<<26;  // on met le 26-27ime bits a 11 , donc high speed mode
+	// GPIOC.OTYPER &= ~(0x1<<13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
+	// GPIOA.OSPEEDR |= 0x03<<26;  // on met le 26-27ime bits a 11 , donc high speed mode
 	GPIOC.PUPDR &= 0xF3FFFFFF; // Mettre en pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
 }
 
-void tempo_500ms(){
+void tempo_500ms()
+{
 	volatile uint32_t duree;
 	/* estimation, suppose que le compilateur n'optimise pas trop... */
-	for (duree = 0; duree < 5600000 ; duree++){
+	for (duree = 0; duree < 5600000; duree++)
+	{
 		;
 	}
-
 }
 
-void init_USART(){
+void init_USART()
+{
 	GPIOA.MODER = (GPIOA.MODER & 0xFFFFFF0F) | 0x000000A0;
 	GPIOA.AFRL = (GPIOA.AFRL & 0xFFFF00FF) | 0x00007700;
-	USART2.BRR = get_APB1CLK()/9600;
+	USART2.BRR = get_APB1CLK() / 9600;
 	USART2.CR3 = 0;
 	USART2.CR2 = 0;
 }
 
-void _putc(const char c){
-	while( (USART2.SR & 0x80) == 0);  
+void _putc(const char c)
+{
+	while ((USART2.SR & 0x80) == 0)
+		;
 	USART2.DR = c;
 }
 
-void _puts(const char *c){
+void _puts(const char *c)
+{
 	int len = strlen(c);
-	for (int i=0;i<len;i++){
+	for (int i = 0; i < len; i++)
+	{
 		_putc(c[i]);
 	}
 }
 
-char _getc(){
+char _getc()
+{
 	/* À compléter */
 }
 
 /* Initialisation du timer système (systick) */
-void systick_init(uint32_t freq){
-	uint32_t p = get_SYSCLK()/freq;
-	SysTick.LOAD = (p-1) & 0x00FFFFFF;
+void systick_init(uint32_t freq)
+{
+	uint32_t p = get_SYSCLK() / freq;
+	SysTick.LOAD = (p - 1) & 0x00FFFFFF;
 	SysTick.VAL = 0;
 	SysTick.CTRL |= 7;
 }
 
-void __attribute__((interrupt)) SysTick_Handler(){
+void __attribute__((interrupt)) SysTick_Handler()
+{
 	/* Le fait de définir cette fonction suffit pour
 	 * qu'elle soit utilisée comme traitant,
 	 * cf les fichiers de compilation et d'édition de lien
@@ -84,7 +94,8 @@ void __attribute__((interrupt)) SysTick_Handler(){
 }
 
 /* Fonction non bloquante envoyant une chaîne par l'UART */
-int _async_puts(const char* s) {
+int _async_puts(const char *s)
+{
 	/* Cette fonction doit utiliser un traitant d'interruption
 	 * pour gérer l'envoi de la chaîne s (qui doit rester
 	 * valide pendant tout l'envoi). Elle doit donc être
@@ -102,46 +113,55 @@ int _async_puts(const char* s) {
 	/* À compléter */
 }
 
-int button_pressed(){
-	return ((GPIOC.IDR >> 13) & 0x01)==0; // apparement ,quand le bouton est poussé, sa valeur est a 0
+int button_pressed()
+{
+	return ((GPIOC.IDR >> 13) & 0x01) == 0; // apparement ,quand le bouton est poussé, sa valeur est a 0
 }
 
-void turn_led_on(){
+void turn_led_on()
+{
 	GPIOA.ODR |= 0x00000020;
 }
 
-void turn_led_off(){
-	GPIOA.ODR &= ~(0x1<<5);
+void turn_led_off()
+{
+	GPIOA.ODR &= ~(0x1 << 5);
 }
 
-int main() {
-  
+int main()
+{
+
 	printf("\e[2J\e[1;1H\r\n");
 	printf("\e[01;32m*** Welcome to Nucleo F446 ! ***\e[00m\r\n");
 
 	printf("\e[01;31m\t%08lx-%08lx-%08lx\e[00m\r\n",
-	       U_ID[0],U_ID[1],U_ID[2]);
-	printf("SYSCLK = %9lu Hz\r\n",get_SYSCLK());
-	printf("AHBCLK = %9lu Hz\r\n",get_AHBCLK());
-	printf("APB1CLK= %9lu Hz\r\n",get_APB1CLK());
-	printf("APB2CLK= %9lu Hz\r\n",get_APB2CLK());
+		   U_ID[0], U_ID[1], U_ID[2]);
+	printf("SYSCLK = %9lu Hz\r\n", get_SYSCLK());
+	printf("AHBCLK = %9lu Hz\r\n", get_AHBCLK());
+	printf("APB1CLK= %9lu Hz\r\n", get_APB1CLK());
+	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
 
 	init_LD2();
-	init_PB();
- //quand bouton pressé, la led s'allume
-	while (1){
-		if (button_pressed()){
-			turn_led_on();
-		}
-		else {
-			turn_led_off();
-		}
+	//init_PB();
+	// quand bouton pressé, la led s'allume
+	//  while (1){
+	//  	if (button_pressed()){
+	//  		turn_led_on();
+	//  	}
+	//  	else {
+	//  		turn_led_off();
+	//  	}
+	//  }
+
+	// en utilisant tempo la led clignote
+	while (1)
+	{
+		tempo_500ms();
+		turn_led_on();
+		tempo_500ms();
+		turn_led_off();
+		tempo_500ms();
 	}
 	return 0;
-	
-	
-	
-
 }
-
