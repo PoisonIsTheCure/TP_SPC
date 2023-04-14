@@ -60,7 +60,7 @@ void _putc(const char c)
 	USART2.DR = c;
 }
 
-//affiche un entier sur 2 digits
+// affiche un entier sur 2 digits
 void _puts(const char *c)
 {
 	int len = strlen(c);
@@ -69,12 +69,13 @@ void _puts(const char *c)
 		_putc(c[i]);
 	}
 }
-//affiche le carac entré au clavier
+// affiche le carac entré au clavier
 char _getc()
 {
 	/* À compléter */
-	while ((USART2.SR & 0x20)==0);
-	char c = USART2.DR ;
+	while ((USART2.SR & 0x20) == 0)
+		;
+	char c = USART2.DR;
 	return c;
 }
 
@@ -132,7 +133,8 @@ void turn_led_off()
 	GPIOA.ODR &= ~(0x1 << 5);
 }
 
-void clignote_2sec(){
+void clignote_2sec()
+{
 	for (int i = 0; i < 2; i++)
 	{
 		turn_led_on();
@@ -140,7 +142,6 @@ void clignote_2sec(){
 		turn_led_off();
 		tempo_500ms();
 	}
-	
 }
 
 int main()
@@ -158,17 +159,17 @@ int main()
 	printf("\r\n");
 
 	init_LD2();
-	//exo 1.1.1
-	//init_PB();
+	// exo 1.1.1
+	init_PB();
 	// quand bouton pressé, la led s'allume
-	//  while (1){
-	//  	if (button_pressed()){
-	//  		turn_led_on();
-	//  	}
-	//  	else {
-	//  		turn_led_off();
-	//  	}
-	//  }
+	//   while (1){
+	//   	if (button_pressed()){
+	//   		turn_led_on();
+	//   	}
+	//   	else {
+	//   		turn_led_off();
+	//   	}
+	//   }
 
 	// Exo1.1.2 en utilisant tempo la led clignote
 	/*
@@ -182,20 +183,22 @@ int main()
 	}
 */
 	// exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
-	// while(1){
-		// if(button_pressed()){
-			// clignote_2sec();
-		// }
-	// }
-
-	//exo 1.2
 	while (1)
 	{
-		char c = _getc();
-		_putc(c);
+		if (button_pressed())
+		{
+			clignote_2sec();
+		}
 	}
-	
 
+	// exo 1.2
+	//  while (1)
+	//  {
+	//  char c = _getc();
+	//  _putc(c);
+	// }
+
+	// exo 1.3 systick event == RM p 238 ? interupt
 
 	return 0;
 }
