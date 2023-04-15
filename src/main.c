@@ -8,6 +8,11 @@
 
 static volatile char c = 0;
 
+// My variables
+volatile uint64_t timecount = 0;
+volatile uint64_t interval = 500;
+
+
 void init_LD2()
 {
 	/* on positionne ce qu'il faut dans les différents
@@ -95,7 +100,11 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * cf les fichiers de compilation et d'édition de lien
 	 * pour plus de détails.
 	 */
-	/* ... */
+	//tempo_500ms(); // tempo of 500ms
+	timecount++;
+	if (timecount%interval == 0)
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit 
+	// if it's on it turns of , if its of , it turns on.
 }
 
 /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -159,20 +168,42 @@ int main()
 	printf("\r\n");
 
 	init_LD2();
-	// exo 1.1.1
 	init_PB();
-	// quand bouton pressé, la led s'allume
-	//   while (1){
-	//   	if (button_pressed()){
-	//   		turn_led_on();
-	//   	}
-	//   	else {
-	//   		turn_led_off();
-	//   	}
-	//   }
+	systick_init(1); // une fois chaque millisecond
 
-	// Exo1.1.2 en utilisant tempo la led clignote
-	/*
+
+
+
+	while (1)
+	{
+		if (button_pressed()){
+			if (interval>0) interval -=50;
+			while (button_pressed()) // Protection pour que ca sera fait une seule fois
+				;
+		}
+	}
+
+
+	return 0;
+}
+
+/*
+LES ANCIENS AXOS :
+
+	exo 1.1.1
+	quand bouton pressé, la led s'allume
+	  while (1){
+	  	if (button_pressed()){
+	  		turn_led_on();
+	  	}
+	  	else {
+	  		turn_led_off();
+	  	}
+	  }
+
+-------------------------------------------------------
+	Exo1.1.2 en utilisant tempo la led clignote
+	
 	while (1)
 	{
 		tempo_500ms();
@@ -181,8 +212,9 @@ int main()
 		turn_led_off();
 		tempo_500ms();
 	}
-*/
-	// exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
+
+------------------------------
+	exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
 	while (1)
 	{
 		if (button_pressed())
@@ -191,14 +223,49 @@ int main()
 		}
 	}
 
-	// exo 1.2
-	//  while (1)
-	//  {
-	//  char c = _getc();
-	//  _putc(c);
-	// }
+-------------------------
+	exo 1.2
+	 while (1)
+	 {
+	 char c = _getc();
+	 _putc(c);
+	}
 
-	// exo 1.3 systick event == RM p 238 ? interupt
+-------------------------
+exo 1.3, programme qui clignotte chaque 500ms
+		systick_init(1); // une fois chaque millisecond
+		while (1)
+		{
+		}
 
-	return 0;
-}
+	void __attribute__((interrupt)) SysTick_Handler()
+	{
+	timecount++;
+	if (timecount%interval == 0)
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
+	}
+-------------------------
+exo 1.3.2, programme qui augmente la frequence avec chaque button cliquee
+
+	systick_init(1); // une fois chaque millisecond
+
+
+
+
+	while (1)
+	{
+		if (button_pressed()){
+			if (interval>0) interval -=50;
+			while (button_pressed()) // Protection pour que ca sera fait une seule fois
+				;
+		}
+	}
+
+		void __attribute__((interrupt)) SysTick_Handler()
+	{
+	timecount++;
+	if (timecount%interval == 0)
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
+	}
+
+*/
