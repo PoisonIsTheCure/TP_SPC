@@ -13,7 +13,7 @@ volatile uint64_t timecount = 0;
 volatile uint64_t interval = 500;
 
 
-void init_LD2()
+void init_LD2() // TODO configuer PA 4 à 7 (4 leds rouge shield)
 {
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
@@ -24,20 +24,49 @@ void init_LD2()
 	GPIOA.PUPDR &= 0xFFFFF3FF;
 }
 
-/*
-UMp23
-Bouton Bleu = PC13
-cherche a modifier tout les registre utile avec RM a partir de la p187
-*/
-void init_PB()
+//*************************************************************************************//
+// BOUTON BLEU NUCLEO 
+//
+// GPIO C patte 13
+// no pull-up, no pull-down
+//*************************************************************************************//
+
+void init_blue_button()
 {
-	/* GPIOC.MODER = ... */
-	RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
-	GPIOC.MODER = 0xF3FFFFFF; // On met le moder en input mode (change l octet qui comprend le n13 en 00)
-	// GPIOC.OTYPER &= ~(0x1<<13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
-	// GPIOA.OSPEEDR |= 0x03<<26;  // on met le 26-27ime bits a 11 , donc high speed mode
-	GPIOC.PUPDR &= 0xF3FFFFFF; // Mettre en pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
+	RCC.AHB1ENR |= 0x4;		      // on initialise la clock de GPIOC (RM page 141)
+	GPIOC.MODER &= 0xF3FFFFFF;    // on met le moder en input mode (change l octet qui comprend le n13 en 00)
+	GPIOC.OTYPER &= ~(0x1 << 13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
+	GPIOC.OSPEEDR |= 0x03 << 26;  // on met le 26-27ime bits a 11 , donc high speed mode
+	GPIOC.PUPDR &= 0xF3FFFFF;     // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
 }
+
+uint8_t is_blue_button_pressed() {
+	return ((GPIOC.IDR >> 13) & 0x01) == 0; // quand le bouton est pressé, sa valeur est a 0
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
+// BOUTON BLANC SHIELD 
+//
+// GPIO B patte 8
+// no pull-up, no pull-down
+//*************************************************************************************//
+
+void init_white_button()
+{
+	RCC.AHB1ENR |= 0x2;		     // on initialise la clock de GPIOB (RM page 141)
+	GPIOB.MODER &= 0xFFFCFFFF;   // on met le moder en input mode (change l octet qui comprend le n8 en 00)
+	GPIOB.OTYPER &= ~(0x1 << 8); // on met le 8eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 8
+	GPIOB.OSPEEDR |= 0x03 << 16; // on met le 16-17ime bits a 11 , donc high speed mode
+	GPIOB.PUPDR &= 0xFFFCFFFF;   // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 8, RMp189
+}
+
+uint8_t is_white_button_pressed() {
+	return ((GPIOB.IDR >> 8) & 0x01) == 0; // quand le bouton est pressé, sa valeur est a 0
+}
+
+//*************************************************************************************//
 
 void tempo_500ms()
 {
@@ -127,11 +156,6 @@ int _async_puts(const char *s)
 	/* À compléter */
 }
 
-int button_pressed()
-{
-	return ((GPIOC.IDR >> 13) & 0x01) == 0; // apparement ,quand le bouton est poussé, sa valeur est a 0
-}
-
 void turn_led_on()
 {
 	GPIOA.ODR |= 0x00000020;
@@ -167,105 +191,22 @@ int main()
 	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
 
-	init_LD2();
-	init_PB();
-	systick_init(1); // une fois chaque millisecond
+	//init_LD2();
+	// init_PB(); a retirer
+	//systick_init(1); // une fois chaque millisecond
 
 
 
 
-	while (1)
+	/*while (1)
 	{
 		if (button_pressed()){
 			if (interval>0) interval -=50;
 			while (button_pressed()) // Protection pour que ca sera fait une seule fois
 				;
 		}
-	}
+	}*/
 
 
 	return 0;
 }
-
-/*
-LES ANCIENS AXOS :
-
-	exo 1.1.1
-	quand bouton pressé, la led s'allume
-	  while (1){
-	  	if (button_pressed()){
-	  		turn_led_on();
-	  	}
-	  	else {
-	  		turn_led_off();
-	  	}
-	  }
-
--------------------------------------------------------
-	Exo1.1.2 en utilisant tempo la led clignote
-	
-	while (1)
-	{
-		tempo_500ms();
-		turn_led_on();
-		tempo_500ms();
-		turn_led_off();
-		tempo_500ms();
-	}
-
-------------------------------
-	exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
-	while (1)
-	{
-		if (button_pressed())
-		{
-			clignote_2sec();
-		}
-	}
-
--------------------------
-	exo 1.2
-	 while (1)
-	 {
-	 char c = _getc();
-	 _putc(c);
-	}
-
--------------------------
-exo 1.3, programme qui clignotte chaque 500ms
-		systick_init(1); // une fois chaque millisecond
-		while (1)
-		{
-		}
-
-	void __attribute__((interrupt)) SysTick_Handler()
-	{
-	timecount++;
-	if (timecount%interval == 0)
-		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
-	}
--------------------------
-exo 1.3.2, programme qui augmente la frequence avec chaque button cliquee
-
-	systick_init(1); // une fois chaque millisecond
-
-
-
-
-	while (1)
-	{
-		if (button_pressed()){
-			if (interval>0) interval -=50;
-			while (button_pressed()) // Protection pour que ca sera fait une seule fois
-				;
-		}
-	}
-
-		void __attribute__((interrupt)) SysTick_Handler()
-	{
-	timecount++;
-	if (timecount%interval == 0)
-		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
-	}
-
-*/
