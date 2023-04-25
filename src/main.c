@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 #include "sys/cm4.h"
 #include "sys/devices.h"
 #include "sys/init.h"
@@ -10,19 +11,18 @@ static volatile char c = 0;
 
 // My variables
 volatile uint64_t timecount = 0;
-volatile uint64_t interval = 500;
-
+volatile uint64_t interval = 100;
 
 void init_LD2()
 {
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
-	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	RCC.AHB1ENR |= 0x01;								   // on allume gpioA (init clock)
 	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400; // ici on met le moder de 5pin bit a 1
 	// GPIO.MODER c'est le register ou on precise si c'est input 00 ou output 01
 	GPIOA.OTYPER &= ~(0x1 << 5); // on met toujour a 0 , push-pull
 	GPIOA.OSPEEDR |= 0x03 << 10; // always on high speed
-	//GPIOA.PUPDR &= 0xFFFFF3FF; // on met a 11 
+								 // GPIOA.PUPDR &= 0xFFFFF3FF; // on met a 11
 }
 
 /*
@@ -50,6 +50,25 @@ void tempo_500ms()
 	}
 }
 
+void change_couleur()
+{
+	srand(timecount);
+	int alea = rand() % 3;
+	switch (alea)
+	{
+	case 0:
+		GPIOA.ODR ^= 0x00000100; // flipping the 5th bit
+		return;
+	case 1:
+		GPIOA.ODR ^= 0x00000300; // flipping the 5th bit
+		return;
+	case 2:
+		GPIOA.ODR ^= 0x00000400; // flipping the 5th bit
+		return;
+	}
+	return;
+}
+
 void init_USART()
 {
 	GPIOA.MODER = (GPIOA.MODER & 0xFFFFFF0F) | 0x000000A0;
@@ -58,8 +77,6 @@ void init_USART()
 	USART2.CR3 = 0;
 	USART2.CR2 = 0;
 }
-
-
 
 void _putc(const char c)
 {
@@ -103,16 +120,17 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * cf les fichiers de compilation et d'édition de lien
 	 * pour plus de détails.
 	 */
-	//tempo_500ms(); // tempo of 500ms
+	// tempo_500ms(); // tempo of 500ms
 	timecount++;
-	if (timecount%interval == 0)
-		GPIOA.ODR ^= 0x00000100; // flipping the 5th bit 
-	// if it's on it turns of , if its of , it turns on.
+	if (timecount % interval == 0)
+		change_couleur();
+		//GPIOA.ODR ^= 0x00000700; // flipping the 5th bit
+								 // if it's on it turns of , if its of , it turns on.
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
 // int _async_puts(const char *s)
-// 
+//
 // 	/* Cette fonction doit utiliser un traitant d'interruption
 // 	 * pour gérer l'envoi de la chaîne s (qui doit rester
 // 	 * valide pendant tout l'envoi). Elle doit donc être
@@ -156,7 +174,6 @@ void clignote_2sec()
 	}
 }
 
-
 /* PARTIE CARTE MERE */
 
 void init_RED_PA8()
@@ -164,11 +181,34 @@ void init_RED_PA8()
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
 	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
-	GPIOA.MODER = (GPIOA.MODER & 0xFFCFFFF) | 0x00010000;
-	//GPIOA.OTYPER &= ~(0x1 << 8); // on met toujour a 0 , push-pull
-	GPIOA.OSPEEDR |= 0x03 << 16; // always on high speed
-	//GPIOA.PUPDR |= 0x03 << 8; // on met a 11 
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFCFFFF) | 0x00010000;
+	GPIOA.OTYPER &= ~(0x1 << 8);  // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 16;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 16); // on met a 11
 }
+
+void init_RED_PA9()
+{
+	/* on positionne ce qu'il faut dans les différents
+	   registres concernés */
+	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFF3FFFF) | 0x00040000;
+	GPIOA.OTYPER &= ~(0x1 << 9);  // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 18;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 18); // on met a 11
+}
+
+void init_RED_PA10()
+{
+	/* on positionne ce qu'il faut dans les différents
+	   registres concernés */
+	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFCFFFFF) | 0x00100000;
+	GPIOA.OTYPER &= ~(0x1 << 10); // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 20;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 20); // on met a 11
+}
+
 
 int main()
 {
@@ -184,15 +224,19 @@ int main()
 	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
 
-	//init_LD2();
+	// init_LD2();
 	init_PB();
-	//init_RED_PA8();
+	init_RED_PA8();
+	init_RED_PA9();
+	init_RED_PA10();
 	systick_init(1000); // une fois chaque seconde
 
 	while (1)
 	{
+		if (button_pressed()){
+			interval-=10;
+		}
 	}
 
 	return 0;
 }
-
