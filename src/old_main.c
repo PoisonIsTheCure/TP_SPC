@@ -17,12 +17,11 @@ void init_LD2()
 {
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
-	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
-	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400; // ici on met le moder de 5pin bit a 1
-	// GPIO.MODER c'est le register ou on precise si c'est input 00 ou output 01
-	GPIOA.OTYPER &= ~(0x1 << 5); // on met toujour a 0 , push-pull
-	GPIOA.OSPEEDR |= 0x03 << 10; // always on high speed
-	//GPIOA.PUPDR &= 0xFFFFF3FF; // on met a 11 
+	RCC.AHB1ENR |= 0x01;
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400; // ici on met le moder de 5eme bit a 1
+	GPIOA.OTYPER &= ~(0x1 << 5);
+	GPIOA.OSPEEDR |= 0x03 << 10;
+	GPIOA.PUPDR &= 0xFFFFF3FF;
 }
 
 /*
@@ -106,29 +105,29 @@ void __attribute__((interrupt)) SysTick_Handler()
 	//tempo_500ms(); // tempo of 500ms
 	timecount++;
 	if (timecount%interval == 0)
-		GPIOA.ODR ^= 0x00000100; // flipping the 5th bit 
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit 
 	// if it's on it turns of , if its of , it turns on.
 }
 
-// /* Fonction non bloquante envoyant une chaîne par l'UART */
-// int _async_puts(const char *s)
-// 
-// 	/* Cette fonction doit utiliser un traitant d'interruption
-// 	 * pour gérer l'envoi de la chaîne s (qui doit rester
-// 	 * valide pendant tout l'envoi). Elle doit donc être
-// 	 * non bloquante (pas d'attente active non plus) et
-// 	 * renvoyer 0.
-// 	 *
-// 	 * Si une chaîne est déjà en cours d'envoi, cette
-// 	 * fonction doit renvoyer 1 (et ignorer la nouvelle
-// 	 * chaîne).
-// 	 *
-// 	 * Si s est NULL, le code de retour permet de savoir
-// 	 * si une chaîne est encore en cours d'envoi ou si
-// 	 * une nouvelle chaîne peut être envoyée.
-// 	 */
-// 	/* À compléter */
-// }
+/* Fonction non bloquante envoyant une chaîne par l'UART */
+int _async_puts(const char *s)
+{
+	/* Cette fonction doit utiliser un traitant d'interruption
+	 * pour gérer l'envoi de la chaîne s (qui doit rester
+	 * valide pendant tout l'envoi). Elle doit donc être
+	 * non bloquante (pas d'attente active non plus) et
+	 * renvoyer 0.
+	 *
+	 * Si une chaîne est déjà en cours d'envoi, cette
+	 * fonction doit renvoyer 1 (et ignorer la nouvelle
+	 * chaîne).
+	 *
+	 * Si s est NULL, le code de retour permet de savoir
+	 * si une chaîne est encore en cours d'envoi ou si
+	 * une nouvelle chaîne peut être envoyée.
+	 */
+	/* À compléter */
+}
 
 int button_pressed()
 {
@@ -156,20 +155,6 @@ void clignote_2sec()
 	}
 }
 
-
-/* PARTIE CARTE MERE */
-
-void init_RED_PA8()
-{
-	/* on positionne ce qu'il faut dans les différents
-	   registres concernés */
-	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
-	GPIOA.MODER = (GPIOA.MODER & 0xFFCFFFF) | 0x00010000;
-	//GPIOA.OTYPER &= ~(0x1 << 8); // on met toujour a 0 , push-pull
-	GPIOA.OSPEEDR |= 0x03 << 16; // always on high speed
-	//GPIOA.PUPDR |= 0x03 << 8; // on met a 11 
-}
-
 int main()
 {
 
@@ -184,15 +169,100 @@ int main()
 	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
 
-	//init_LD2();
+	init_LD2();
 	init_PB();
-	//init_RED_PA8();
-	systick_init(1000); // une fois chaque seconde
+	systick_init(1); // une fois chaque seconde
+
+
+
 
 	while (1)
 	{
 	}
 
+
 	return 0;
 }
 
+/*
+LES ANCIENS AXOS :
+
+	exo 1.1.1
+	quand bouton pressé, la led s'allume
+	  while (1){
+	  	if (button_pressed()){
+	  		turn_led_on();
+	  	}
+	  	else {
+	  		turn_led_off();
+	  	}
+	  }
+
+-------------------------------------------------------
+	Exo1.1.2 en utilisant tempo la led clignote
+	
+	while (1)
+	{
+		tempo_500ms();
+		turn_led_on();
+		tempo_500ms();
+		turn_led_off();
+		tempo_500ms();
+	}
+
+------------------------------
+	exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
+	while (1)
+	{
+		if (button_pressed())
+		{
+			clignote_2sec();
+		}
+	}
+
+-------------------------
+	exo 1.2
+	 while (1)
+	 {
+	 char c = _getc();
+	 _putc(c);
+	}
+
+-------------------------
+exo 1.3, programme qui clignotte chaque 500ms
+		systick_init(1); // une fois chaque millisecond
+		while (1)
+		{
+		}
+
+	void __attribute__((interrupt)) SysTick_Handler()
+	{
+	timecount++;
+	if (timecount%interval == 0)
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
+	}
+-------------------------
+exo 1.3.2, programme qui augmente la frequence avec chaque button cliquee
+
+	systick_init(1); // une fois chaque millisecond
+
+
+
+
+	while (1)
+	{
+		if (button_pressed()){
+			if (interval>0) interval -=50;
+			while (button_pressed()) // Protection pour que ca sera fait une seule fois
+				;
+		}
+	}
+
+		void __attribute__((interrupt)) SysTick_Handler()
+	{
+	timecount++;
+	if (timecount%interval == 0)
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit if it's on it turns of , if its of , it turns on.
+	}
+
+*/
