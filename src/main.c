@@ -10,8 +10,15 @@
 static volatile char c = 0;
 
 // My variables
-volatile uint64_t timecount = 0;
-volatile uint64_t interval = 100;
+volatile uint32_t timecount = 0;
+volatile uint32_t interval = 100;
+
+// MACROS to modify bits
+#define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
+#define CLEAR_BIT(REG, BIT) ((REG) &= ~(1 << (BIT)))
+#define TOGGLE_BIT(REG, BIT) ((REG) ^= (1 << (BIT)))
+#define READ_BIT(REG, BIT) ((REG) & (1 << (BIT)))
+
 
 void init_LD2()
 {
@@ -54,16 +61,20 @@ void change_couleur()
 {
 	srand(timecount);
 	int alea = rand() % 3;
+	// Clearing colors bits
+	CLEAR_BIT(GPIOA.ODR,8);
+	CLEAR_BIT(GPIOA.ODR,9);
+	CLEAR_BIT(GPIOA.ODR,10);
 	switch (alea)
 	{
 	case 0:
-		GPIOA.ODR ^= 0x00000100; // flipping the 5th bit
+		SET_BIT(GPIOA.ODR,8);
 		return;
 	case 1:
-		GPIOA.ODR ^= 0x00000300; // flipping the 5th bit
+		SET_BIT(GPIOA.ODR,9);
 		return;
 	case 2:
-		GPIOA.ODR ^= 0x00000400; // flipping the 5th bit
+		SET_BIT(GPIOA.ODR,10);
 		return;
 	}
 	return;
