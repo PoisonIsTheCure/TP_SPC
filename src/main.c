@@ -52,7 +52,8 @@ volatile uint16_t nb_blue_button_pressed = 0;
 volatile uint16_t debut_partie = 0;
 volatile uint16_t fin_partie = 0;
 volatile uint8_t chronometre = DUREE_PARTIE_SEC;
-volatile uint8_t etat_couleur = 0; // etat a 0 -> touts couleurs allumer
+volatile uint8_t ancien_etat_couleur = 0; // garder l'ancien etat des couleurs
+volatile uint8_t etat_couleur = 0;		  // les etats pour les couleurs
 
 //*************************************************************************************//
 
@@ -129,9 +130,13 @@ void change_couleur_RGB()
 		srand(timecount);
 		// int alea = rand() % 3;
 		//  Clearing colors bits
-		//CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
-		///CLEAR_BIT(GPIOA.ODR, 9); // set
-		//CLEAR_BIT(GPIOA.ODR, 10);
+		if (ancien_etat_couleur != etat_couleur)
+		{
+			CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
+			CLEAR_BIT(GPIOA.ODR, 9); // set
+			CLEAR_BIT(GPIOA.ODR, 10);
+		}
+		// ce ci dessus variable sert a faire un reset lorsque le couleur change
 		switch (etat_couleur)
 		{
 		case 0:
@@ -143,8 +148,8 @@ void change_couleur_RGB()
 		case 2:
 			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
 		case 3:
-			TOGGLE_BIT(GPIOA.ODR, 8);	// RED
-			TOGGLE_BIT(GPIOA.ODR, 9);	// GREEN
+			TOGGLE_BIT(GPIOA.ODR, 8);  // RED
+			TOGGLE_BIT(GPIOA.ODR, 9);  // GREEN
 			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
 			return;
 		}
@@ -162,6 +167,7 @@ int abs(int val)
 void verifie_etat_couleur()
 {
 	int val = abs(random_interval_red_leds - random_interval_user);
+	ancien_etat_couleur = etat_couleur;
 	if (val > 100)
 	{
 		etat_couleur = 0;
@@ -235,6 +241,40 @@ void lancer_buzzer()
 	{
 		toggle_buzzer(1);
 	}
+}
+
+//*************************************************************************************//
+// FONCTIONS POUR LES SWITCHS
+//
+//*************************************************************************************//
+
+void init_switch()
+{
+	SET_BIT(RCC.AHB1ENR, 1);		   // enable clock de GPIOB
+	GPIOB.MODER &= 0xFFFFC03F;		   // bits of pins from 3 to 6 at 00
+	GPIOB.OTYPER &= 0xFFFFFF87;		   // bits of pins from 3 to 6 at 0
+	GPIOB.OSPEEDR |= 0xFF << 6;		   // les bits a 1
+	GPIOB.PUPDR &= ~(0xFF << (2 * 3)); // NO PULL , NO PUSH
+}
+
+uint8_t check_switch_1()
+{
+	return READ_BIT(GPIOB.IDR, 3);
+}
+
+uint8_t check_switch_2()
+{
+	return READ_BIT(GPIOB.IDR, 4);
+}
+
+uint8_t check_switch_3()
+{
+	return READ_BIT(GPIOB.IDR, 5);
+}
+
+uint8_t check_switch_4()
+{
+	return READ_BIT(GPIOB.IDR, 6);
 }
 
 //*************************************************************************************//
