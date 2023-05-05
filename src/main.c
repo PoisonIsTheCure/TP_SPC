@@ -22,7 +22,20 @@
 #define RAND_NUM_MIN 50
 #define RAND_NUM_MAX 800
 #define DUREE_PARTIE 10000
-#define DUREE_PARTIE_SEC DUREE_PARTIE/1000
+#define DUREE_PARTIE_SEC DUREE_PARTIE / 1000
+
+//*************************************************************************************//
+
+//*************************************************************************************//
+// MACROS
+//
+// to modify bits
+//*************************************************************************************//
+
+#define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
+#define CLEAR_BIT(REG, BIT) ((REG) &= ~(1 << (BIT)))
+#define TOGGLE_BIT(REG, BIT) ((REG) ^= (1 << (BIT)))
+#define READ_BIT(REG, BIT) ((REG) & (1 << (BIT)))
 
 //*************************************************************************************//
 
@@ -33,11 +46,13 @@
 
 static volatile char c = 0;
 volatile uint64_t timecount = 0;
-volatile uint16_t random_interval = 0;
+volatile uint16_t random_interval_red_leds = 0;
+volatile uint16_t random_interval_user = 0;
 volatile uint16_t nb_blue_button_pressed = 0;
 volatile uint16_t debut_partie = 0;
 volatile uint16_t fin_partie = 0;
 volatile uint8_t chronometre = DUREE_PARTIE_SEC;
+volatile uint8_t etat_couleur = 0; // etat a 0 -> touts couleurs allumer
 
 //*************************************************************************************//
 
@@ -54,6 +69,171 @@ void tempo_500ms()
 	for (duree = 0; duree < 5600000; duree++)
 	{
 		;
+	}
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
+// lED RGB
+//
+// PA 8 à 10 (3 leds de différentes couleurs)
+//*************************************************************************************//
+
+//*************************************************************************************//
+
+void init_RED_PA8()
+{
+	/* on positionne ce qu'il faut dans les différents
+	   registres concernés */
+	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFCFFFF) | 0x00010000;
+	GPIOA.OTYPER &= ~(0x1 << 8);  // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 16;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 16); // on met a 11
+}
+
+void init_GREEN_PA9()
+{
+	/* on positionne ce qu'il faut dans les différents
+	   registres concernés */
+	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFF3FFFF) | 0x00040000;
+	GPIOA.OTYPER &= ~(0x1 << 9);  // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 18;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 18); // on met a 11
+}
+
+void init_BLUE_PA10()
+{
+	/* on positionne ce qu'il faut dans les différents
+	   registres concernés */
+	RCC.AHB1ENR |= 0x01; // on allume gpioA (init clock)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFCFFFFF) | 0x00100000;
+	GPIOA.OTYPER &= ~(0x1 << 10); // on met toujour a 0 , push-pull
+	GPIOA.OSPEEDR |= 0x03 << 20;  // always on high speed
+	GPIOA.PUPDR &= ~(0x03 << 20); // on met a 11
+}
+
+void init_RGB()
+{
+	init_RED_PA8();
+	init_GREEN_PA9();
+	init_BLUE_PA10();
+}
+
+void change_couleur_RGB()
+{
+	if (timecount % random_interval_user == 0)
+	{
+		srand(timecount);
+		// int alea = rand() % 3;
+		//  Clearing colors bits
+		//CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
+		///CLEAR_BIT(GPIOA.ODR, 9); // set
+		//CLEAR_BIT(GPIOA.ODR, 10);
+		switch (etat_couleur)
+		{
+		case 0:
+			TOGGLE_BIT(GPIOA.ODR, 8); // RED
+			return;
+		case 1:
+			TOGGLE_BIT(GPIOA.ODR, 9); // GREEN
+			return;
+		case 2:
+			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
+		case 3:
+			TOGGLE_BIT(GPIOA.ODR, 8);	// RED
+			TOGGLE_BIT(GPIOA.ODR, 9);	// GREEN
+			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
+			return;
+		}
+	}
+	return;
+}
+
+int abs(int val)
+{
+	if (val < 0)
+		return -val;
+	return val;
+}
+
+void verifie_etat_couleur()
+{
+	int val = abs(random_interval_red_leds - random_interval_user);
+	if (val > 100)
+	{
+		etat_couleur = 0;
+	}
+	if (val < 100 && val > 50)
+	{
+		etat_couleur = 1;
+	}
+	if (val < 50)
+	{
+		etat_couleur = 3;
+	}
+}
+
+//*************************************************************************************//
+// BUZZER
+//
+//*************************************************************************************//
+
+void init_buzzer()
+{
+	RCC.AHB1ENR |= 0x2; // on initialise la clock de GPIOB
+						// GPIOB.MODER &= 0xFFF3FFFF;     // on met le moder en input mode (change 1 octet qui comprend le n9 en 00)
+	SET_BIT(GPIOB.MODER, 2 * 9);
+	CLEAR_BIT(GPIOB.MODER, (2 * 9) + 1);
+	// GPIOB.OTYPER &= ~(0x1 << 9); // on met le 9eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 9
+	CLEAR_BIT(GPIOB.OTYPER, 9);
+	GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 , donc high speed mode
+	GPIOB.PUPDR &= 0xFFF3FFFF;	 // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 9
+}
+
+void turn_buzzer_on()
+{
+	// GPIOB.ODR |= 0x00000100;
+	SET_BIT(GPIOB.ODR, 9);
+}
+
+void turn_buzzer_off()
+{ // on éteint toutes les leds (de 4 à 7)
+	// GPIOB.ODR &= 0xFFFFFDFF;
+	CLEAR_BIT(GPIOB.ODR, 9);
+}
+
+void toggle_buzzer(int freq)
+{
+	if (debut_partie != 0 && (timecount % freq == 0))
+	{
+		TOGGLE_BIT(GPIOB.ODR, 9);
+	}
+}
+
+void lancer_buzzer()
+{
+	if (5 < chronometre && chronometre <= 10)
+	{
+		toggle_buzzer(1000);
+	}
+	else if (3 < chronometre && chronometre <= 5)
+	{
+		toggle_buzzer(500);
+	}
+	else if (1 < chronometre && chronometre <= 3)
+	{
+		toggle_buzzer(250);
+	}
+	else if (chronometre == 1)
+	{
+		toggle_buzzer(150);
+	}
+	else if (chronometre == 0)
+	{
+		toggle_buzzer(1);
 	}
 }
 
@@ -119,6 +299,17 @@ void turn_red_leds_off()
 int get_random_for_red_leds()
 {
 	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN;
+}
+
+void toggle_red_leds()
+{
+	if (timecount % random_interval_red_leds == 0)
+	{
+		TOGGLE_BIT(GPIOA.ODR, 4);
+		TOGGLE_BIT(GPIOA.ODR, 5);
+		TOGGLE_BIT(GPIOA.ODR, 6);
+		TOGGLE_BIT(GPIOA.ODR, 7);
+	}
 }
 
 //*************************************************************************************//
@@ -239,27 +430,27 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 */
 	timecount++;
 
-	if (timecount % random_interval == 0)
-	{
-		turn_red_leds_on();
-	}
-	else
-	{
-		turn_red_leds_off();
-	}
+	toggle_red_leds();
+	lancer_buzzer();
+	verifie_etat_couleur();
+	change_couleur_RGB();
 
 	if (timecount == debut_partie + DUREE_PARTIE)
 	{
 		fin_partie = 1;
 	}
 
-	if (debut_partie!=0 && (timecount % 1000 ==0)) {
-		if (chronometre == 1) {
-			printf("%d",chronometre);
-		} else {
-			printf("%d,",chronometre);
+	if (debut_partie != 0 && (timecount % 1000 == 0))
+	{
+		if (chronometre == 1)
+		{
+			printf("%d", chronometre);
 		}
-		chronometre-=1;
+		else
+		{
+			printf("%d,", chronometre);
+		}
+		chronometre -= 1;
 	}
 }
 
@@ -306,6 +497,10 @@ int main(void)
 
 	init_red_leds();
 
+	init_RGB();
+
+	init_buzzer();
+
 	init_white_button();
 	init_blue_button();
 
@@ -327,13 +522,14 @@ int main(void)
 
 			debut_partie = timecount;
 
-			random_interval = get_random_for_red_leds();
+			random_interval_red_leds = get_random_for_red_leds();
 
-			printf("Random interval = %d\r\n", random_interval);
+			random_interval_user = 500;
+
+			printf("Random interval = %d\r\n", random_interval_red_leds);
 
 			while (!fin_partie)
 			{
-				
 			}
 
 			printf("\r\nPartie terminée !\r\n");
