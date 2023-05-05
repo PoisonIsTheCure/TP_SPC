@@ -60,6 +60,32 @@ void init_white_button()
 	GPIOB.PUPDR &= 0xFFFCFFFF;	 // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 8, RMp189
 }
 
+// PB3 -> PB6;
+
+void init_switch(){
+	SET_BIT(RCC.AHB1ENR,1);  // enable clock de GPIOB
+	GPIOB.MODER &= 0xFFFFC03F; // bits of pins from 3 to 6 at 00
+	GPIOB.OTYPER &= 0xFFFFFF87; //bits of pins from 3 to 6 at 0
+	GPIOB.OSPEEDR |= 0xFF << 6; // les bits a 1
+	GPIOB.PUPDR &= ~(0xFF << (2*3)); // NO PULL , NO PUSH 
+}
+
+uint8_t check_switch_1(){
+	return READ_BIT(GPIOB.IDR,3);
+}
+
+uint8_t check_switch_2(){
+	return READ_BIT(GPIOB.IDR,4);
+}
+
+uint8_t check_switch_3(){
+	return READ_BIT(GPIOB.IDR,5);
+}
+
+uint8_t check_switch_4(){
+	return READ_BIT(GPIOB.IDR,6);
+}
+
 int is_white_button_pressed()
 {
 	return ((GPIOB.IDR >> 8) & 0x01) == 0; // quand le bouton est pressé, sa valeur est a 0
@@ -191,6 +217,24 @@ void change_couleur_RGB()
 		}
 	}
 	return;
+}
+
+int abs(int val){
+	if (val < 0) return -val;
+	return val;
+}
+
+void verifie_etat_couleur(){
+	int val = abs(interval_rand-interval_user);
+	if (val>100){
+		etat_couleur = 0;
+	}
+	if (val < 100 && val > 50){
+		etat_couleur = 1;
+	}
+	if (val < 50){
+		etat_couleur = 3;
+	}
 }
 
 void reinitialiser_interval_user(){
