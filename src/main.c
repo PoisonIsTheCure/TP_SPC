@@ -51,9 +51,10 @@ volatile uint16_t random_interval_user = 0;
 volatile uint16_t nb_blue_button_pressed = 0;
 volatile uint16_t debut_partie = 0;
 volatile uint16_t fin_partie = 0;
-volatile uint8_t chronometre = DUREE_PARTIE_SEC;
-volatile uint8_t ancien_etat_couleur = 0; // garder l'ancien etat des couleurs
-volatile uint8_t etat_couleur = 0;		  // les etats pour les couleurs
+volatile uint16_t duree_partie = DUREE_PARTIE_SEC; // Ce variable sera utiliser pour remettre
+volatile uint8_t chronometre = DUREE_PARTIE_SEC;   // 15 secondes duree partie par defaut
+volatile uint8_t ancien_etat_couleur = 0;		   // garder l'ancien etat des couleurs
+volatile uint8_t etat_couleur = 0;				   // les etats pour les couleurs
 
 //*************************************************************************************//
 
@@ -244,6 +245,8 @@ void lancer_buzzer()
 }
 
 //*************************************************************************************//
+
+//*************************************************************************************//
 // FONCTIONS POUR LES SWITCHS
 //
 //*************************************************************************************//
@@ -259,22 +262,22 @@ void init_switch()
 
 uint8_t check_switch_1()
 {
-	return READ_BIT(GPIOB.IDR, 3);
+	return READ_BIT(GPIOB.IDR, 3) == 1;
 }
 
 uint8_t check_switch_2()
 {
-	return READ_BIT(GPIOB.IDR, 4);
+	return READ_BIT(GPIOB.IDR, 4) == 1;
 }
 
 uint8_t check_switch_3()
 {
-	return READ_BIT(GPIOB.IDR, 5);
+	return READ_BIT(GPIOB.IDR, 5) == 1;
 }
 
 uint8_t check_switch_4()
 {
-	return READ_BIT(GPIOB.IDR, 6);
+	return READ_BIT(GPIOB.IDR, 6) == 1;
 }
 
 //*************************************************************************************//
@@ -336,7 +339,13 @@ void turn_red_leds_off()
 	GPIOA.ODR &= 0xFFFFFF0F;
 }
 
-int get_random_for_red_leds()
+/**
+ * @brief Renvoie un numero aleatoire
+ * Attention : il faut initialiser le greme
+ * 
+ * @return int 
+ */
+int get_random_nb()
 {
 	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN;
 }
@@ -497,6 +506,54 @@ void __attribute__((interrupt)) SysTick_Handler()
 //*************************************************************************************//
 
 //*************************************************************************************//
+// FONCTIONS GENERALS AUXILIERES
+//
+//*************************************************************************************//
+
+/**
+ * @brief On regroupe tous les inits dans une seule fonction
+ * 
+ */
+void init_general()
+{
+	//turn_red_leds_off();
+
+	systick_init(1000); // une fois chaque millisecond
+
+	init_red_leds();
+
+	init_RGB();
+
+	init_buzzer();
+
+	init_white_button();
+
+	init_blue_button();
+
+	init_switch();
+}
+
+int choix_mode_du_jeux(){
+	if (check_switch_1){
+		return 20;
+	}
+	else if (check_switch_2){
+		return 15;
+	}
+	else if (check_switch_3){
+		return 10;
+	}
+	else if (check_switch_4){
+		return 5;
+	}
+	else {
+		return DUREE_PARTIE_SEC;
+	}
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
 // FONCTIONS JEUX
 //
 //*************************************************************************************//
@@ -506,7 +563,9 @@ void reset_game()
 	nb_blue_button_pressed = 0;
 	debut_partie = 0;
 	fin_partie = 0;
-	chronometre = DUREE_PARTIE_SEC;
+	etat_couleur = 3; // tous les leds sont allumer
+	chronometre = choix_mode_du_jeux();
+	srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
 }
 
 //*************************************************************************************//
@@ -531,18 +590,7 @@ int main(void)
 	printf("----------------------------------------------\r\n");
 	printf("Press the blue button twice to start\r\n");
 
-	turn_red_leds_off();
-
-	systick_init(1000); // une fois chaque millisecond
-
-	init_red_leds();
-
-	init_RGB();
-
-	init_buzzer();
-
-	init_white_button();
-	init_blue_button();
+	init_general();
 
 	while (1)
 	{
@@ -550,19 +598,23 @@ int main(void)
 		if (is_blue_button_pressed())
 		{
 			nb_blue_button_pressed += 1;
-
 			while (is_blue_button_pressed())
 				;
 		}
-
-		if (nb_blue_button_pressed == 2)
+		// if (nb_blue_button_pressed == 1)
+		// {
+		// 	reset_game();
+		// 	while (!is_blue_button_pressed())
+		// 		;
+		// }
+		else if (nb_blue_button_pressed == 2)
 		{
 
-			srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
+			// remit srand dans reset game
 
 			debut_partie = timecount;
 
-			random_interval_red_leds = get_random_for_red_leds();
+			random_interval_red_leds = get_random_nb();
 
 			random_interval_user = 500;
 
