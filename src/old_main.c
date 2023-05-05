@@ -129,7 +129,7 @@ int _async_puts(const char *s)
 	/* À compléter */
 }
 
-int button_pressed()
+int buttonA_pressed()
 {
 	return ((GPIOC.IDR >> 13) & 0x01) == 0; // apparement ,quand le bouton est poussé, sa valeur est a 0
 }
@@ -190,7 +190,7 @@ LES ANCIENS AXOS :
 	exo 1.1.1
 	quand bouton pressé, la led s'allume
 	  while (1){
-	  	if (button_pressed()){
+	  	if (buttonA_pressed()){
 	  		turn_led_on();
 	  	}
 	  	else {
@@ -214,7 +214,7 @@ LES ANCIENS AXOS :
 	exo 1.1.3, quand le bouton est relaché la les clignote 2s, et l allume quand on appuis
 	while (1)
 	{
-		if (button_pressed())
+		if (buttonA_pressed())
 		{
 			clignote_2sec();
 		}
@@ -251,9 +251,9 @@ exo 1.3.2, programme qui augmente la frequence avec chaque button cliquee
 
 	while (1)
 	{
-		if (button_pressed()){
+		if (buttonA_pressed()){
 			if (interval>0) interval -=50;
-			while (button_pressed()) // Protection pour que ca sera fait une seule fois
+			while (buttonA_pressed()) // Protection pour que ca sera fait une seule fois
 				;
 		}
 	}

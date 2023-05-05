@@ -12,13 +12,14 @@ static volatile char c = 0;
 // My variables
 volatile uint32_t timecount = 0;
 volatile uint32_t interval = 1000;
+volatile int buttonA_clicked = 0;
+volatile int buttonB_clicked = 0;
 
 // MACROS to modify bits
 #define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
 #define CLEAR_BIT(REG, BIT) ((REG) &= ~(1 << (BIT)))
 #define TOGGLE_BIT(REG, BIT) ((REG) ^= (1 << (BIT)))
 #define READ_BIT(REG, BIT) ((REG) & (1 << (BIT)))
-
 
 void init_LD2()
 {
@@ -40,10 +41,10 @@ cherche a modifier tout les registre utile avec RM a partir de la p187
 void init_PB()
 {
 	/* GPIOC.MODER = ... */
-	//RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
-	SET_BIT(RCC.AHB1ENR,3);
-	 GPIOC.MODER &= ~(3U << (2*13));      // set pin PC13 to input mode
-    GPIOC.PUPDR &= ~(3U << (2*13));      // disable pull-up and pull-down resistors
+	// RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
+	SET_BIT(RCC.AHB1ENR, 3);
+	GPIOC.MODER &= ~(3U << (2 * 13)); // set pin PC13 to input mode
+	GPIOC.PUPDR &= ~(3U << (2 * 13)); // disable pull-up and pull-down resistors
 }
 
 void tempo_500ms()
@@ -61,19 +62,19 @@ void change_couleur()
 	srand(timecount);
 	int alea = rand() % 3;
 	// Clearing colors bits
-	CLEAR_BIT(GPIOA.ODR,8);
-	CLEAR_BIT(GPIOA.ODR,9);
-	CLEAR_BIT(GPIOA.ODR,10);
+	CLEAR_BIT(GPIOA.ODR, 8);
+	CLEAR_BIT(GPIOA.ODR, 9);
+	CLEAR_BIT(GPIOA.ODR, 10);
 	switch (alea)
 	{
 	case 0:
-		SET_BIT(GPIOA.ODR,8);
+		SET_BIT(GPIOA.ODR, 8);
 		return;
 	case 1:
-		SET_BIT(GPIOA.ODR,9);
+		SET_BIT(GPIOA.ODR, 9);
 		return;
 	case 2:
-		SET_BIT(GPIOA.ODR,10);
+		SET_BIT(GPIOA.ODR, 10);
 		return;
 	}
 	return;
@@ -133,11 +134,11 @@ void __attribute__((interrupt)) SysTick_Handler()
 	// tempo_500ms(); // tempo of 500ms
 	timecount++;
 	if (timecount % interval == 0)
-		//change_couleur();
+		// change_couleur();
 		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
 								 // if it's on it turns of , if its off , it turns on.
-	if ( interval==0) //interval > 1000 ||
-		interval = 1000; // resetting the interval
+	if (interval == 0)			 // interval > 1000 ||
+		interval = 1000;		 // resetting the interval
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -160,7 +161,7 @@ void __attribute__((interrupt)) SysTick_Handler()
 // 	/* À compléter */
 // }
 
-int button_pressed()
+int buttonA_pressed()
 {
 	return ((GPIOC.IDR >> 13) & 0x01) == 0; // apparement ,quand le bouton est poussé, sa valeur est a 0
 }
@@ -199,7 +200,7 @@ void init_RED_PA8()
 	GPIOA.PUPDR &= ~(0x03 << 16); // on met a 11
 }
 
-void init_RED_PA9()
+void init_GREEN_PA9()
 {
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
@@ -210,7 +211,7 @@ void init_RED_PA9()
 	GPIOA.PUPDR &= ~(0x03 << 18); // on met a 11
 }
 
-void init_RED_PA10()
+void init_BLUE_PA10()
 {
 	/* on positionne ce qu'il faut dans les différents
 	   registres concernés */
@@ -221,6 +222,36 @@ void init_RED_PA10()
 	GPIOA.PUPDR &= ~(0x03 << 20); // on met a 11
 }
 
+void init_RGB()
+{
+	init_RED_PA8();
+	init_GREEN_PA9();
+	init_BLUE_PA10();
+}
+
+/**
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click 
+ * du boutton
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation 
+ * La fonction doit etre utiliser dans un boucle while Infinie
+ * 
+ * @param value the value to add (+/-)
+ */
+void on_buttonA_click(int value)
+{
+	if (buttonA_pressed())
+	{
+		if (!buttonA_clicked)
+		{
+			interval += value;
+			buttonA_clicked = 1;
+		}
+	}
+	else
+	{
+		buttonA_clicked = 0;
+	}
+}
 
 int main()
 {
@@ -238,25 +269,12 @@ int main()
 
 	init_LD2();
 	init_PB();
-	//init_RED_PA8();button_pressed()
-	//init_RED_PA9();
-	//init_RED_PA10();
+
 	systick_init(1000); // une fois chaque seconde
 
-	int button_clicked = 0;
-
-while (1)
-{
-    if (button_pressed()) {
-        if (!button_clicked) {
-            interval -= 100;
-            button_clicked = 1;
-        }
-    } else {
-        button_clicked = 0;
-    }
-}
-
+	while (1)
+	{
+	}
 
 	return 0;
 }
