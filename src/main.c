@@ -10,10 +10,10 @@
 static volatile char c = 0;
 
 // My variables
-volatile uint32_t globaltime = 0;
-volatile uint32_t interval_rand = 1000;
-volatile uint32_t interval_user = 1000;
-volatile uint8_t buttonA_clicked = 0;
+volatile uint32_t globaltime = 0; // global time
+volatile uint32_t interval_rand = 600; // intervale choisi random
+volatile uint32_t interval_user = 300; // intervale controler par utilisateur
+volatile uint8_t buttonA_clicked = 0; // button bleu
 volatile uint8_t buttonB_clicked = 0; // is white button
 volatile uint8_t etat_couleur = 0; // etat a 0 -> touts couleurs allumer
 // loin -> bleu +/- 100ms
@@ -106,6 +106,15 @@ void init_red_leds()
 	init_red_led7();	 // on initialise la led 7 PA7
 }
 
+void toggle_red_leds(){
+	if (globaltime % interval_rand == 0){
+		TOGGLE_BIT(GPIOA.ODR,4);
+		TOGGLE_BIT(GPIOA.ODR,5);
+		TOGGLE_BIT(GPIOA.ODR,6);
+		TOGGLE_BIT(GPIOA.ODR,7);
+	}
+}
+
 void init_buzzer()
 {
 	RCC.AHB1ENR |= 0x2; // on initialise la clock de GPIOB
@@ -154,7 +163,7 @@ void toggle_buzzer()
 		TOGGLE_BIT(GPIOB.ODR, 9);
 }
 
-void change_couleur()
+void change_couleur_RGB()
 {
 	if (globaltime % interval_user == 0)
 	{
@@ -164,21 +173,31 @@ void change_couleur()
 		CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
 		CLEAR_BIT(GPIOA.ODR, 9); // set
 		CLEAR_BIT(GPIOA.ODR, 10);
-		switch (alea)
+		switch (etat_couleur)
 		{
 		case 0:
-			SET_BIT(GPIOA.ODR, 8);
+			SET_BIT(GPIOA.ODR, 8); // RED
 			return;
 		case 1:
-			SET_BIT(GPIOA.ODR, 9);
+			SET_BIT(GPIOA.ODR, 9);// GREEN
 			return;
 		case 2:
-			SET_BIT(GPIOA.ODR, 10);
+			SET_BIT(GPIOA.ODR, 10);// BLUE
+		case 3:
+			SET_BIT(GPIOA.ODR, 8); // RED
+			SET_BIT(GPIOA.ODR, 9); // GREEN
+			SET_BIT(GPIOA.ODR, 10);// BLUE
 			return;
 		}
 	}
 	return;
 }
+
+void reinitialiser_interval_user(){
+	if (interval_user == 0 || interval_user > 1000 )
+		interval_user = 1000; // resetting the intervalA
+}
+
 
 void init_USART()
 {
@@ -231,15 +250,12 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * cf les fichiers de compilation et d'édition de lien
 	 * pour plus de détails.
 	 */
-	// tempo_500ms(); // tempo of 500ms
 	globaltime++;
 
 	// toggle_buzzer();
-	change_couleur();
-	// GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
-	//  if it's on it turns of , if its off , it turns on.
-	if (interval_user == 0)	  // intervalA > 1000 ||
-		interval_user = 1000; // resetting the intervalA
+	change_couleur_RGB();
+	reinitialiser_interval_user(); // verrifie les bornes de l'intervale
+
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -275,6 +291,10 @@ void turn_led_on()
 void turn_led_off()
 {
 	GPIOA.ODR &= ~(0x1 << 5);
+}
+
+void toggle_led2(){
+	TOGGLE_BIT(GPIOA.ODR,5);
 }
 
 void clignote_2sec()
@@ -344,7 +364,7 @@ void on_buttonA_click(int value)
 	{
 		if (!buttonA_clicked)
 		{
-			interval_rand += value;
+			interval_user += value;
 			buttonA_clicked = 1;
 		}
 	}
@@ -402,7 +422,8 @@ int main()
 
 	while (1)
 	{
-		on_buttonB_click(-100);
+		on_buttonA_click(+10);
+		on_buttonB_click(-10);
 		// buzzer();
 	}
 
