@@ -10,10 +10,11 @@
 static volatile char c = 0;
 
 // My variables
-volatile uint32_t timecount = 0;
-volatile uint32_t interval = 1000;
+volatile uint32_t globaltime = 0;
+volatile uint32_t intervalA = 1000;
+volatile uint32_t intervalB = 1000;
 volatile int buttonA_clicked = 0;
-volatile int buttonB_clicked = 0;
+volatile int buttonB_clicked = 0; // is white button
 
 // MACROS to modify bits
 #define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
@@ -47,6 +48,29 @@ void init_PB()
 	GPIOC.PUPDR &= ~(3U << (2 * 13)); // disable pull-up and pull-down resistors
 }
 
+void init_white_button()
+{
+	RCC.AHB1ENR |= 0x2;			 // on initialise la clock de GPIOB (RM page 141)
+	GPIOB.MODER &= 0xFFFCFFFF;	 // on met le moder en input mode (change l octet qui comprend le n8 en 00)
+	GPIOB.OTYPER &= ~(0x1 << 8); // on met le 8eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 8
+	GPIOB.OSPEEDR |= 0x03 << 16; // on met le 16-17ime bits a 11 , donc high speed mode
+	GPIOB.PUPDR &= 0xFFFCFFFF;	 // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 8, RMp189
+}
+
+int is_white_button_pressed()
+{
+	return ((GPIOB.IDR >> 8) & 0x01) == 0; // quand le bouton est pressé, sa valeur est a 0
+}
+
+void init_buzzer(){
+    RCC.AHB1ENR |= 0x2;             // on initialise la clock de GPIOB
+    GPIOB.MODER &= 0xFFF3FFFF;     // on met le moder en input mode (change 1 octet qui comprend le n9 en 00)
+    GPIOB.OTYPER &= ~(0x1 << 9); // on met le 9eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 9
+    GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 , donc high speed mode
+    GPIOB.PUPDR &= 0xFFF3FFFF;     // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 9
+
+}
+
 void tempo_500ms()
 {
 	volatile uint32_t duree;
@@ -59,7 +83,7 @@ void tempo_500ms()
 
 void change_couleur()
 {
-	srand(timecount);
+	srand(globaltime);
 	int alea = rand() % 3;
 	// Clearing colors bits
 	CLEAR_BIT(GPIOA.ODR, 8);
@@ -132,13 +156,13 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * pour plus de détails.
 	 */
 	// tempo_500ms(); // tempo of 500ms
-	timecount++;
-	if (timecount % interval == 0)
-		// change_couleur();
-		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
+	globaltime++;
+	if (globaltime % intervalB == 0)
+		change_couleur();
+		//GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
 								 // if it's on it turns of , if its off , it turns on.
-	if (interval == 0)			 // interval > 1000 ||
-		interval = 1000;		 // resetting the interval
+	if (intervalB == 0)			 // intervalA > 1000 ||
+		intervalB = 1000;		 // resetting the intervalA
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -243,13 +267,37 @@ void on_buttonA_click(int value)
 	{
 		if (!buttonA_clicked)
 		{
-			interval += value;
+			intervalA += value;
 			buttonA_clicked = 1;
 		}
 	}
 	else
 	{
 		buttonA_clicked = 0;
+	}
+}
+
+/**
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click 
+ * du boutton
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation 
+ * La fonction doit etre utiliser dans un boucle while Infinie
+ * 
+ * @param value the value to add (+/-)
+ */
+void on_buttonB_click(int value)
+{
+	if (is_white_button_pressed())
+	{
+		if (!buttonB_clicked)
+		{
+			intervalB += value;
+			buttonB_clicked = 1;
+		}
+	}
+	else
+	{
+		buttonB_clicked = 0;
 	}
 }
 
@@ -268,12 +316,15 @@ int main()
 	printf("\r\n");
 
 	init_LD2();
+	init_RGB();
 	init_PB();
+	init_white_button();
 
 	systick_init(1000); // une fois chaque seconde
 
 	while (1)
 	{
+		on_buttonB_click(-100);
 	}
 
 	return 0;
