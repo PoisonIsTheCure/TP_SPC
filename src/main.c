@@ -11,10 +11,13 @@ static volatile char c = 0;
 
 // My variables
 volatile uint32_t globaltime = 0;
-volatile uint32_t intervalA = 1000;
-volatile uint32_t intervalB = 1000;
-volatile int buttonA_clicked = 0;
-volatile int buttonB_clicked = 0; // is white button
+volatile uint32_t interval_rand = 1000;
+volatile uint32_t interval_user = 1000;
+volatile uint8_t buttonA_clicked = 0;
+volatile uint8_t buttonB_clicked = 0; // is white button
+volatile uint8_t etat_couleur = 0; // etat a 0 -> touts couleurs allumer
+// loin -> bleu +/- 100ms
+// 
 
 // MACROS to modify bits
 #define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
@@ -62,13 +65,57 @@ int is_white_button_pressed()
 	return ((GPIOB.IDR >> 8) & 0x01) == 0; // quand le bouton est pressé, sa valeur est a 0
 }
 
-void init_buzzer(){
-    RCC.AHB1ENR |= 0x2;             // on initialise la clock de GPIOB
-    GPIOB.MODER &= 0xFFF3FFFF;     // on met le moder en input mode (change 1 octet qui comprend le n9 en 00)
-    GPIOB.OTYPER &= ~(0x1 << 9); // on met le 9eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 9
-    GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 , donc high speed mode
-    GPIOB.PUPDR &= 0xFFF3FFFF;     // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 9
+void init_red_led4()
+{ // on initialise la led 4 (PA4)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFFFCFF) | 0x00000100;
+	GPIOA.OTYPER &= ~(0x1 << 4);
+	GPIOA.OSPEEDR |= 0x03 << 8;
+	GPIOA.PUPDR &= 0xFFFFFCFF;
+}
 
+void init_red_led5()
+{ // on initialise la led 5 (PA5)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFFF3FF) | 0x00000400;
+	GPIOA.OTYPER &= ~(0x1 << 5);
+	GPIOA.OSPEEDR |= 0x03 << 10;
+	GPIOA.PUPDR &= 0xFFFFF3FF;
+}
+
+void init_red_led6()
+{ // on initialise la led 6 (PA6)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFF3FFF) | 0x00004000;
+	GPIOA.OTYPER &= ~(0x1 << 6);
+	GPIOA.OSPEEDR |= 0x03 << 12;
+	GPIOA.PUPDR &= 0xFFFF3FFF;
+}
+
+void init_red_led7()
+{ // on initialise la led 7 (PA7)
+	GPIOA.MODER = (GPIOA.MODER & 0xFFFFCFFF) | 0x00001000;
+	GPIOA.OTYPER &= ~(0x1 << 7);
+	GPIOA.OSPEEDR |= 0x03 << 14;
+	GPIOA.PUPDR &= 0xFFFFCFFF;
+}
+
+void init_red_leds()
+{						 // on initialise toutes les leds (de 4 à 7)
+	RCC.AHB1ENR |= 0x01; // on initialise la clock de GPIOA (RM page 141)
+	init_red_led4();	 // on initialise la led 4 PA4
+	init_red_led5();	 // on initialise la led 5 PA5
+	init_red_led6();	 // on initialise la led 6 PA6
+	init_red_led7();	 // on initialise la led 7 PA7
+}
+
+void init_buzzer()
+{
+	RCC.AHB1ENR |= 0x2; // on initialise la clock de GPIOB
+						// GPIOB.MODER &= 0xFFF3FFFF;     // on met le moder en input mode (change 1 octet qui comprend le n9 en 00)
+	SET_BIT(GPIOB.MODER, 2 * 9);
+	CLEAR_BIT(GPIOB.MODER, (2 * 9) + 1);
+	// GPIOB.OTYPER &= ~(0x1 << 9); // on met le 9eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 9
+	CLEAR_BIT(GPIOB.OTYPER, 9);
+	GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 , donc high speed mode
+	GPIOB.PUPDR &= 0xFFF3FFFF;	 // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 9
 }
 
 void tempo_500ms()
@@ -81,25 +128,54 @@ void tempo_500ms()
 	}
 }
 
+void turn_buzzer_on()
+{
+	// GPIOB.ODR |= 0x00000100;
+	SET_BIT(GPIOB.ODR, 9);
+}
+
+void turn_buzzer_off()
+{	// on éteint toutes les leds (de 4 à 7)
+	// GPIOB.ODR &= 0xFFFFFDFF;
+	CLEAR_BIT(GPIOB.ODR, 9);
+}
+
+void buzzer()
+{
+	turn_buzzer_on();
+	tempo_500ms();
+	turn_buzzer_off();
+	tempo_500ms();
+}
+
+void toggle_buzzer()
+{
+	if (globaltime % interval_user == 0)
+		TOGGLE_BIT(GPIOB.ODR, 9);
+}
+
 void change_couleur()
 {
-	srand(globaltime);
-	int alea = rand() % 3;
-	// Clearing colors bits
-	CLEAR_BIT(GPIOA.ODR, 8);
-	CLEAR_BIT(GPIOA.ODR, 9);
-	CLEAR_BIT(GPIOA.ODR, 10);
-	switch (alea)
+	if (globaltime % interval_user == 0)
 	{
-	case 0:
-		SET_BIT(GPIOA.ODR, 8);
-		return;
-	case 1:
-		SET_BIT(GPIOA.ODR, 9);
-		return;
-	case 2:
-		SET_BIT(GPIOA.ODR, 10);
-		return;
+		srand(globaltime);
+		int alea = rand() % 3;
+		// Clearing colors bits
+		CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
+		CLEAR_BIT(GPIOA.ODR, 9); // set
+		CLEAR_BIT(GPIOA.ODR, 10);
+		switch (alea)
+		{
+		case 0:
+			SET_BIT(GPIOA.ODR, 8);
+			return;
+		case 1:
+			SET_BIT(GPIOA.ODR, 9);
+			return;
+		case 2:
+			SET_BIT(GPIOA.ODR, 10);
+			return;
+		}
 	}
 	return;
 }
@@ -157,12 +233,13 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 */
 	// tempo_500ms(); // tempo of 500ms
 	globaltime++;
-	if (globaltime % intervalB == 0)
-		change_couleur();
-		//GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
-								 // if it's on it turns of , if its off , it turns on.
-	if (intervalB == 0)			 // intervalA > 1000 ||
-		intervalB = 1000;		 // resetting the intervalA
+
+	// toggle_buzzer();
+	change_couleur();
+	// GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
+	//  if it's on it turns of , if its off , it turns on.
+	if (interval_user == 0)	  // intervalA > 1000 ||
+		interval_user = 1000; // resetting the intervalA
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -254,11 +331,11 @@ void init_RGB()
 }
 
 /**
- * @brief Cette fonction contient decremente l'intervale a la suite d'une click 
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click
  * du boutton
- * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation 
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation
  * La fonction doit etre utiliser dans un boucle while Infinie
- * 
+ *
  * @param value the value to add (+/-)
  */
 void on_buttonA_click(int value)
@@ -267,7 +344,7 @@ void on_buttonA_click(int value)
 	{
 		if (!buttonA_clicked)
 		{
-			intervalA += value;
+			interval_rand += value;
 			buttonA_clicked = 1;
 		}
 	}
@@ -278,11 +355,11 @@ void on_buttonA_click(int value)
 }
 
 /**
- * @brief Cette fonction contient decremente l'intervale a la suite d'une click 
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click
  * du boutton
- * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation 
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation
  * La fonction doit etre utiliser dans un boucle while Infinie
- * 
+ *
  * @param value the value to add (+/-)
  */
 void on_buttonB_click(int value)
@@ -291,7 +368,7 @@ void on_buttonB_click(int value)
 	{
 		if (!buttonB_clicked)
 		{
-			intervalB += value;
+			interval_user += value;
 			buttonB_clicked = 1;
 		}
 	}
@@ -318,6 +395,7 @@ int main()
 	init_LD2();
 	init_RGB();
 	init_PB();
+	init_buzzer();
 	init_white_button();
 
 	systick_init(1000); // une fois chaque seconde
@@ -325,6 +403,7 @@ int main()
 	while (1)
 	{
 		on_buttonB_click(-100);
+		// buzzer();
 	}
 
 	return 0;
