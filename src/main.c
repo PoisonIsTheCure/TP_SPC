@@ -11,7 +11,7 @@ static volatile char c = 0;
 
 // My variables
 volatile uint32_t timecount = 0;
-volatile uint32_t interval = 100;
+volatile uint32_t interval = 1000;
 
 // MACROS to modify bits
 #define SET_BIT(REG, BIT) ((REG) |= (1 << (BIT)))
@@ -40,11 +40,10 @@ cherche a modifier tout les registre utile avec RM a partir de la p187
 void init_PB()
 {
 	/* GPIOC.MODER = ... */
-	RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
-	GPIOC.MODER = 0xF3FFFFFF; // On met le moder en input mode (change l octet qui comprend le n13 en 00)
-	// GPIOC.OTYPER &= ~(0x1<<13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
-	// GPIOA.OSPEEDR |= 0x03<<26;  // on met le 26-27ime bits a 11 , donc high speed mode
-	GPIOC.PUPDR &= 0xF3FFFFFF; // Mettre en pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
+	//RCC.AHB1ENR |= 0x04;	  // On initialise la clock de GPIOC (RM page 141)
+	SET_BIT(RCC.AHB1ENR,3);
+	 GPIOC.MODER &= ~(3U << (2*13));      // set pin PC13 to input mode
+    GPIOC.PUPDR &= ~(3U << (2*13));      // disable pull-up and pull-down resistors
 }
 
 void tempo_500ms()
@@ -134,9 +133,11 @@ void __attribute__((interrupt)) SysTick_Handler()
 	// tempo_500ms(); // tempo of 500ms
 	timecount++;
 	if (timecount % interval == 0)
-		change_couleur();
-		//GPIOA.ODR ^= 0x00000700; // flipping the 5th bit
-								 // if it's on it turns of , if its of , it turns on.
+		//change_couleur();
+		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
+								 // if it's on it turns of , if its off , it turns on.
+	if ( interval==0) //interval > 1000 ||
+		interval = 1000; // resetting the interval
 }
 
 // /* Fonction non bloquante envoyant une chaîne par l'UART */
@@ -235,19 +236,27 @@ int main()
 	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
 
-	// init_LD2();
+	init_LD2();
 	init_PB();
-	init_RED_PA8();
-	init_RED_PA9();
-	init_RED_PA10();
+	//init_RED_PA8();button_pressed()
+	//init_RED_PA9();
+	//init_RED_PA10();
 	systick_init(1000); // une fois chaque seconde
 
-	while (1)
-	{
-		if (button_pressed()){
-			interval-=10;
-		}
-	}
+	int button_clicked = 0;
+
+while (1)
+{
+    if (button_pressed()) {
+        if (!button_clicked) {
+            interval -= 100;
+            button_clicked = 1;
+        }
+    } else {
+        button_clicked = 0;
+    }
+}
+
 
 	return 0;
 }
