@@ -15,13 +15,29 @@
 //*************************************************************************************//
 
 //*************************************************************************************//
+// DEFINES
+//
+//*************************************************************************************//
+
+#define RAND_NUM_MIN 50
+#define RAND_NUM_MAX 800
+#define DUREE_PARTIE 10000
+#define DUREE_PARTIE_SEC DUREE_PARTIE/1000
+
+//*************************************************************************************//
+
+//*************************************************************************************//
 // VARIABLES GLOBALES
 //
 //*************************************************************************************//
 
 static volatile char c = 0;
 volatile uint64_t timecount = 0;
-volatile uint64_t interval = 500;
+volatile uint16_t random_interval = 0;
+volatile uint16_t nb_blue_button_pressed = 0;
+volatile uint16_t debut_partie = 0;
+volatile uint16_t fin_partie = 0;
+volatile uint8_t chronometre = DUREE_PARTIE_SEC;
 
 //*************************************************************************************//
 
@@ -100,15 +116,9 @@ void turn_red_leds_off()
 	GPIOA.ODR &= 0xFFFFFF0F;
 }
 
-void clignote_2sec()
+int get_random_for_red_leds()
 {
-	for (int i = 0; i < 2; i++)
-	{
-		turn_red_leds_on();
-		tempo_500ms();
-		turn_red_leds_off();
-		tempo_500ms();
-	}
+	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN;
 }
 
 //*************************************************************************************//
@@ -227,11 +237,45 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * cf les fichiers de compilation et d'édition de lien
 	 * pour plus de détails.
 	 */
-	// tempo_500ms(); // tempo of 500ms
 	timecount++;
-	if (timecount % interval == 0)
-		GPIOA.ODR ^= 0x00000020; // flipping the 5th bit
-								 // if it's on it turns of , if its of , it turns on.
+
+	if (timecount % random_interval == 0)
+	{
+		turn_red_leds_on();
+	}
+	else
+	{
+		turn_red_leds_off();
+	}
+
+	if (timecount == debut_partie + DUREE_PARTIE)
+	{
+		fin_partie = 1;
+	}
+
+	if (debut_partie!=0 && (timecount % 1000 ==0)) {
+		if (chronometre == 1) {
+			printf("%d",chronometre);
+		} else {
+			printf("%d,",chronometre);
+		}
+		chronometre-=1;
+	}
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
+// FONCTIONS JEUX
+//
+//*************************************************************************************//
+
+void reset_game()
+{
+	nb_blue_button_pressed = 0;
+	debut_partie = 0;
+	fin_partie = 0;
+	chronometre = DUREE_PARTIE_SEC;
 }
 
 //*************************************************************************************//
@@ -253,42 +297,49 @@ int main(void)
 	printf("APB1CLK= %9lu Hz\r\n", get_APB1CLK());
 	printf("APB2CLK= %9lu Hz\r\n", get_APB2CLK());
 	printf("\r\n");
+	printf("----------------------------------------------\r\n");
+	printf("Press the blue button twice to start\r\n");
 
-	// systick_init(1); // une fois chaque millisecond
+	turn_red_leds_off();
+
+	systick_init(1000); // une fois chaque millisecond
 
 	init_red_leds();
 
 	init_white_button();
 	init_blue_button();
 
-	// while (1) {
-
-	/*if (is_white_button_pressed()) {
-		turn_red_leds_on();
-	} else {
-		turn_red_leds_off();
-	}
-
-	if (is_blue_button_pressed()) {
-		_puts("b");
-	}*/
-
-	// clignote_2sec();
-
-	//}
-
 	while (1)
 	{
-		if (is_white_button_pressed())
+
+		if (is_blue_button_pressed())
 		{
-			// if (interval>0) interval -=50;
-			turn_red_leds_on();
-			while (is_white_button_pressed())
-				; // Protection pour que ca sera fait une seule fois
+			nb_blue_button_pressed += 1;
+
+			while (is_blue_button_pressed())
+				;
 		}
-		else
+
+		if (nb_blue_button_pressed == 2)
 		{
-			turn_red_leds_off();
+
+			srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
+
+			debut_partie = timecount;
+
+			random_interval = get_random_for_red_leds();
+
+			printf("Random interval = %d\r\n", random_interval);
+
+			while (!fin_partie)
+			{
+				
+			}
+
+			printf("\r\nPartie terminée !\r\n");
+			printf("----------------------------------------------\r\n");
+			printf("Press the blue button twice to start\r\n");
+			reset_game();
 		}
 	}
 
