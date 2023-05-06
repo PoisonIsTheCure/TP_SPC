@@ -284,24 +284,24 @@ void init_switch()
 	GPIOB.PUPDR &= ~(0xFF << (2 * 3)); // NO PULL , NO PUSH
 }
 
-uint8_t check_switch_1()
+uint8_t check_switch_4()
 {
 	return READ_BIT(GPIOB.IDR, 3);
 }
 
-uint8_t check_switch_2()
+uint8_t check_switch_3()
 {
 	return READ_BIT(GPIOB.IDR, 4);
 }
 
-uint8_t check_switch_3()
+uint8_t check_switch_2()
 {
 	return READ_BIT(GPIOB.IDR, 5);
 }
 
-uint8_t check_switch_4()
+uint8_t check_switch_1()
 {
-	return READ_BIT(GPIOB.IDR, 6) == 1;
+	return READ_BIT(GPIOB.IDR, 6);
 }
 
 //*************************************************************************************//
@@ -627,24 +627,25 @@ void choix_mode_du_jeux()
 {
 	if (check_switch_1())
 	{
-		duree_partie = 20;
+		duree_partie = 30000;
 	}
 	else if (check_switch_2())
 	{
-		duree_partie = 15;
+		duree_partie = 20000;
 	}
 	else if (check_switch_3())
 	{
-		duree_partie = 10;
+		duree_partie = 15000;
 	}
 	else if (check_switch_4())
 	{
-		duree_partie = 5;
+		duree_partie = 10000;
 	}
 	else
 	{
-		duree_partie = DUREE_PARTIE_SEC;
+		duree_partie = DUREE_PARTIE;
 	}
+	printf("--> %ld //", duree_partie);
 	chronometre = duree_partie / 1000;
 }
 
@@ -662,7 +663,8 @@ void reset_game()
 	fin_partie = 0;
 	etat_couleur = 3; // tous les leds sont allumer
 	// choix_mode_du_jeux(); // cette fonction modifie chronometre et duree de partie
-	chronometre = DUREE_PARTIE_SEC;
+	//chronometre = DUREE_PARTIE_SEC;
+	// choix_mode_du_jeux();
 	srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
 }
 
@@ -720,7 +722,8 @@ int main(void)
 
 		if (nb_blue_button_pressed == 2)
 		{
-
+			// Choix du mode du jeu
+			choix_mode_du_jeux();
 			// remit srand dans reset game
 
 			debut_partie = timecount;
