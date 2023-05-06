@@ -21,7 +21,7 @@
 
 #define RAND_NUM_MIN 50
 #define RAND_NUM_MAX 800
-#define DUREE_PARTIE 10000
+#define DUREE_PARTIE 100000
 #define DUREE_PARTIE_SEC DUREE_PARTIE / 1000
 
 //*************************************************************************************//
@@ -45,16 +45,18 @@
 //*************************************************************************************//
 
 static volatile char c = 0;
-volatile uint64_t timecount = 0;
-volatile uint16_t random_interval_red_leds = 0;
-volatile uint16_t random_interval_user = 0;
-volatile uint16_t nb_blue_button_pressed = 0;
-volatile uint16_t debut_partie = 0;
-volatile uint16_t fin_partie = 0;
-volatile uint16_t duree_partie = DUREE_PARTIE_SEC; // Ce variable sera utiliser pour remettre
-volatile uint8_t chronometre = DUREE_PARTIE_SEC;   // 15 secondes duree partie par defaut
-volatile uint8_t ancien_etat_couleur = 0;		   // garder l'ancien etat des couleurs
-volatile uint8_t etat_couleur = 0;				   // les etats pour les couleurs
+volatile uint32_t timecount = 0;
+volatile uint32_t random_interval_red_leds = 0;
+volatile uint32_t random_interval_user = 0;
+volatile uint32_t nb_blue_button_pressed = 0;
+volatile uint32_t debut_partie = 0;
+volatile uint32_t fin_partie = 0;
+volatile uint32_t duree_partie = DUREE_PARTIE;	 // Ce variable sera utiliser pour remettre
+volatile uint32_t chronometre = DUREE_PARTIE_SEC; // 15 secondes duree partie par defaut
+volatile uint8_t ancien_etat_couleur = 0;		 // garder l'ancien etat des couleurs
+volatile uint8_t etat_couleur = 0;				 // les etats pour les couleurs
+volatile uint8_t blue_button_clicked = 0;		 // button bleu
+volatile uint8_t white_button_clicked = 0;		 // is white button
 
 //*************************************************************************************//
 
@@ -128,9 +130,10 @@ void change_couleur_RGB()
 {
 	if (timecount % random_interval_user == 0)
 	{
-		srand(timecount);
+		// srand(timecount);
 		// int alea = rand() % 3;
 		//  Clearing colors bits
+		printf(" (etat couleur : %d , %ld) ", etat_couleur, random_interval_user);
 		if (ancien_etat_couleur != etat_couleur)
 		{
 			CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
@@ -142,18 +145,20 @@ void change_couleur_RGB()
 		{
 		case 0:
 			TOGGLE_BIT(GPIOA.ODR, 8); // RED
-			return;
+			break;
 		case 1:
 			TOGGLE_BIT(GPIOA.ODR, 9); // GREEN
-			return;
+			break;;
 		case 2:
 			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
+			break;
 		case 3:
 			TOGGLE_BIT(GPIOA.ODR, 8);  // RED
 			TOGGLE_BIT(GPIOA.ODR, 9);  // GREEN
 			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
-			return;
+			break;
 		}
+		ancien_etat_couleur = etat_couleur; // update ancien etat de couleur (Pour savoir quand faire clear pour les bits)
 	}
 	return;
 }
@@ -168,18 +173,20 @@ int abs(int val)
 void verifie_etat_couleur()
 {
 	int val = abs(random_interval_red_leds - random_interval_user);
-	ancien_etat_couleur = etat_couleur;
 	if (val > 100)
 	{
-		etat_couleur = 0;
+		etat_couleur = 2;
 	}
-	if (val < 100 && val > 50)
+	else if (val < 100 && val > 50)
 	{
 		etat_couleur = 1;
 	}
-	if (val < 50)
+	else if (val < 50 && val > 10)
 	{
-		etat_couleur = 3;
+		etat_couleur = 0;
+	}
+	else if (val < 10){
+		etat_couleur = 3; //tout allumer
 	}
 }
 
@@ -222,7 +229,7 @@ void toggle_buzzer(int freq)
 
 void lancer_buzzer()
 {
-	if (5 < chronometre && chronometre <= 10)
+	if (5 < chronometre) // && chronometre <= 10
 	{
 		toggle_buzzer(1000);
 	}
@@ -262,17 +269,17 @@ void init_switch()
 
 uint8_t check_switch_1()
 {
-	return READ_BIT(GPIOB.IDR, 3) == 1;
+	return READ_BIT(GPIOB.IDR, 3);
 }
 
 uint8_t check_switch_2()
 {
-	return READ_BIT(GPIOB.IDR, 4) == 1;
+	return READ_BIT(GPIOB.IDR, 4);
 }
 
 uint8_t check_switch_3()
 {
-	return READ_BIT(GPIOB.IDR, 5) == 1;
+	return READ_BIT(GPIOB.IDR, 5);
 }
 
 uint8_t check_switch_4()
@@ -342,8 +349,8 @@ void turn_red_leds_off()
 /**
  * @brief Renvoie un numero aleatoire
  * Attention : il faut initialiser le greme
- * 
- * @return int 
+ *
+ * @return int
  */
 int get_random_nb()
 {
@@ -458,6 +465,29 @@ char _getc()
 //*************************************************************************************//
 
 //*************************************************************************************//
+// Manipulation du chronometre du jeu
+//
+//*************************************************************************************//
+
+void maj_chronometre()
+{
+	if (debut_partie != 0 && (timecount % 1000 == 0))
+	{
+		if (chronometre == 1)
+		{
+			printf("%ld", chronometre);
+		}
+		else
+		{
+			printf("%ld,", chronometre);
+		}
+		chronometre -= 1;
+	}
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
 // TIMER SYSTEME SYSTICK
 //
 //*************************************************************************************//
@@ -482,24 +512,70 @@ void __attribute__((interrupt)) SysTick_Handler()
 	toggle_red_leds();
 	lancer_buzzer();
 	verifie_etat_couleur();
-	change_couleur_RGB();
+	// change_couleur_RGB();
 
-	if (timecount == debut_partie + DUREE_PARTIE)
+	if (timecount == debut_partie + duree_partie)
 	{
 		fin_partie = 1;
+		debut_partie = 0; // on reset la partie ici
 	}
+	// printf("\n --> etat couleur : %d\n", etat_couleur);
 
-	if (debut_partie != 0 && (timecount % 1000 == 0))
+	maj_chronometre();
+}
+
+//*************************************************************************************//
+
+//*************************************************************************************//
+// INCREMENTATION ET DECREMENTATION SUIVANT LES BOUTTONS
+//
+//*************************************************************************************//
+
+/**
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click
+ * du boutton
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation
+ * La fonction doit etre utiliser dans un boucle while Infinie
+ *
+ * @param value the value to add (+/-)
+ */
+void on_blue_button_click(int value)
+{
+	if (is_blue_button_pressed())
 	{
-		if (chronometre == 1)
+		if (!blue_button_clicked)
 		{
-			printf("%d", chronometre);
+			random_interval_user += value;
+			blue_button_clicked = 1;
 		}
-		else
+	}
+	else
+	{
+		blue_button_clicked = 0;
+	}
+}
+
+/**
+ * @brief Cette fonction contient decremente l'intervale a la suite d'une click
+ * du boutton
+ * Remarque : il faut appuyer puis enlever sa main pour faire la decrementation
+ * La fonction doit etre utiliser dans un boucle while Infinie
+ *
+ * @param value the value to add (+/-)
+ */
+void on_white_button_click(int value)
+{
+	if (is_white_button_pressed())
+	{
+		if (!white_button_clicked)
 		{
-			printf("%d,", chronometre);
+			random_interval_user += value;
+			white_button_clicked = 1;
 		}
-		chronometre -= 1;
+	}
+	else
+	{
+		white_button_clicked = 0;
 	}
 }
 
@@ -512,11 +588,11 @@ void __attribute__((interrupt)) SysTick_Handler()
 
 /**
  * @brief On regroupe tous les inits dans une seule fonction
- * 
+ *
  */
 void init_general()
 {
-	//turn_red_leds_off();
+	// turn_red_leds_off();
 
 	systick_init(1000); // une fois chaque millisecond
 
@@ -533,22 +609,29 @@ void init_general()
 	init_switch();
 }
 
-int choix_mode_du_jeux(){
-	if (check_switch_1){
-		return 20;
+void choix_mode_du_jeux()
+{
+	if (check_switch_1())
+	{
+		duree_partie = 20;
 	}
-	else if (check_switch_2){
-		return 15;
+	else if (check_switch_2())
+	{
+		duree_partie = 15;
 	}
-	else if (check_switch_3){
-		return 10;
+	else if (check_switch_3())
+	{
+		duree_partie = 10;
 	}
-	else if (check_switch_4){
-		return 5;
+	else if (check_switch_4())
+	{
+		duree_partie = 5;
 	}
-	else {
-		return DUREE_PARTIE_SEC;
+	else
+	{
+		duree_partie = DUREE_PARTIE_SEC;
 	}
+	chronometre = duree_partie / 1000;
 }
 
 //*************************************************************************************//
@@ -564,7 +647,8 @@ void reset_game()
 	debut_partie = 0;
 	fin_partie = 0;
 	etat_couleur = 3; // tous les leds sont allumer
-	chronometre = choix_mode_du_jeux();
+	// choix_mode_du_jeux(); // cette fonction modifie chronometre et duree de partie
+	chronometre = DUREE_PARTIE_SEC;
 	srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
 }
 
@@ -601,13 +685,9 @@ int main(void)
 			while (is_blue_button_pressed())
 				;
 		}
-		// if (nb_blue_button_pressed == 1)
-		// {
-		// 	reset_game();
-		// 	while (!is_blue_button_pressed())
-		// 		;
-		// }
-		else if (nb_blue_button_pressed == 2)
+		// La fonction ci dessous fait maintenant l'incrementation du "nb_blue_button_pressed"
+
+		if (nb_blue_button_pressed == 2)
 		{
 
 			// remit srand dans reset game
@@ -616,18 +696,23 @@ int main(void)
 
 			random_interval_red_leds = get_random_nb();
 
-			random_interval_user = 500;
+			random_interval_user = get_random_nb(); // instead of 500
 
-			printf("Random interval = %d\r\n", random_interval_red_leds);
+			printf("Random interval = %ld\r\n", random_interval_red_leds);
 
 			while (!fin_partie)
 			{
+				on_blue_button_click(+10); // clignotte plus rapidement
+				on_white_button_click(-10); // clignotte plus lentement
+				change_couleur_RGB();
 			}
 
 			printf("\r\nPartie terminée !\r\n");
 			printf("----------------------------------------------\r\n");
 			printf("Press the blue button twice to start\r\n");
 			reset_game();
+			break;
+			// end_game();
 		}
 	}
 
