@@ -21,7 +21,7 @@
 
 #define RAND_NUM_MIN 50
 #define RAND_NUM_MAX 800
-#define DUREE_PARTIE 100000
+#define DUREE_PARTIE 25000
 #define DUREE_PARTIE_SEC DUREE_PARTIE / 1000
 
 //*************************************************************************************//
@@ -51,12 +51,14 @@ volatile uint32_t random_interval_user = 0;
 volatile uint32_t nb_blue_button_pressed = 0;
 volatile uint32_t debut_partie = 0;
 volatile uint32_t fin_partie = 0;
-volatile uint32_t duree_partie = DUREE_PARTIE;	 // Ce variable sera utiliser pour remettre
+volatile uint32_t duree_partie = DUREE_PARTIE;	  // Ce variable sera utiliser pour remettre
 volatile uint32_t chronometre = DUREE_PARTIE_SEC; // 15 secondes duree partie par defaut
-volatile uint8_t ancien_etat_couleur = 0;		 // garder l'ancien etat des couleurs
-volatile uint8_t etat_couleur = 0;				 // les etats pour les couleurs
-volatile uint8_t blue_button_clicked = 0;		 // button bleu
-volatile uint8_t white_button_clicked = 0;		 // is white button
+volatile uint8_t ancien_etat_couleur = 0;		  // garder l'ancien etat des couleurs
+volatile uint8_t etat_couleur = 0;				  // les etats pour les couleurs
+volatile uint8_t blue_button_clicked = 0;		  // button bleu
+volatile uint8_t white_button_clicked = 0;		  // is white button
+volatile uint8_t partie_gagnee = 0;	// booleen pour savoir si la partie est gagnee
+volatile uint8_t partie_perdu = 0; // booleen si la partie est perdu
 
 //*************************************************************************************//
 
@@ -133,7 +135,7 @@ void change_couleur_RGB()
 		// srand(timecount);
 		// int alea = rand() % 3;
 		//  Clearing colors bits
-		printf(" (etat couleur : %d , %ld) ", etat_couleur, random_interval_user);
+		//printf(" (etat couleur : %d , %ld) ", etat_couleur, random_interval_user);
 		if (ancien_etat_couleur != etat_couleur)
 		{
 			CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
@@ -148,7 +150,8 @@ void change_couleur_RGB()
 			break;
 		case 1:
 			TOGGLE_BIT(GPIOA.ODR, 9); // GREEN
-			break;;
+			break;
+			;
 		case 2:
 			TOGGLE_BIT(GPIOA.ODR, 10); // BLUE
 			break;
@@ -185,8 +188,11 @@ void verifie_etat_couleur()
 	{
 		etat_couleur = 0;
 	}
-	else if (val < 10){
-		etat_couleur = 3; //tout allumer
+	else if (val < 10)
+	{
+		etat_couleur = 3; // tout allumer
+		if (debut_partie!=0)
+			partie_gagnee = 1;
 	}
 }
 
@@ -248,6 +254,17 @@ void lancer_buzzer()
 	else if (chronometre == 0)
 	{
 		toggle_buzzer(1);
+	}
+}
+
+/**
+ * @brief Le buzzer de gain sonne a une frequence du interval led rouge / 2 (2 fois plus rapide)
+ * 
+ */
+void buzzer_gain(){
+	if (partie_gagnee && (timecount % (random_interval_red_leds/2) == 0))
+	{
+		TOGGLE_BIT(GPIOB.ODR, 9);
 	}
 }
 
@@ -354,6 +371,7 @@ void turn_red_leds_off()
  */
 int get_random_nb()
 {
+	srand(timecount);
 	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN;
 }
 
@@ -510,15 +528,11 @@ void __attribute__((interrupt)) SysTick_Handler()
 	timecount++;
 
 	toggle_red_leds();
-	lancer_buzzer();
 	verifie_etat_couleur();
-	// change_couleur_RGB();
+	lancer_buzzer();
+	//buzzer_gain();
+	change_couleur_RGB();
 
-	if (timecount == debut_partie + duree_partie)
-	{
-		fin_partie = 1;
-		debut_partie = 0; // on reset la partie ici
-	}
 	// printf("\n --> etat couleur : %d\n", etat_couleur);
 
 	maj_chronometre();
@@ -652,6 +666,21 @@ void reset_game()
 	srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
 }
 
+void verifie_fin_de_jeu()
+{
+	if (etat_couleur == 3) {
+		// cas ou je jeu est gagnez 
+		random_interval_user = random_interval_red_leds;
+		fin_partie = 1;
+		debut_partie = 0;
+	}
+	else if (timecount == debut_partie + duree_partie)
+	{
+		fin_partie = 1;
+		debut_partie = 0; // on reset la partie ici
+	}
+}
+
 //*************************************************************************************//
 
 //*************************************************************************************//
@@ -682,6 +711,8 @@ int main(void)
 		if (is_blue_button_pressed())
 		{
 			nb_blue_button_pressed += 1;
+			if (nb_blue_button_pressed == 1)
+				random_interval_red_leds = get_random_nb(); // initilaiser ici pour eviter qu'ils soit les memes
 			while (is_blue_button_pressed())
 				;
 		}
@@ -694,7 +725,7 @@ int main(void)
 
 			debut_partie = timecount;
 
-			random_interval_red_leds = get_random_nb();
+			//random_interval_red_leds = get_random_nb();
 
 			random_interval_user = get_random_nb(); // instead of 500
 
@@ -702,9 +733,18 @@ int main(void)
 
 			while (!fin_partie)
 			{
-				on_blue_button_click(+10); // clignotte plus rapidement
-				on_white_button_click(-10); // clignotte plus lentement
-				change_couleur_RGB();
+				on_blue_button_click(+10);	// clignotte plus lentement
+				on_white_button_click(-10); // clignotte plus rapidement
+				//verifie_etat_couleur();
+				//toggle_red_leds();
+				//change_couleur_RGB();
+				verifie_fin_de_jeu();
+			}
+
+			while (partie_gagnee) {
+				//toggle_red_leds();
+				//change_couleur_RGB();
+				buzzer_gain();
 			}
 
 			printf("\r\nPartie terminée !\r\n");
