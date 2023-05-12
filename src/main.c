@@ -57,8 +57,8 @@ volatile uint8_t ancien_etat_couleur = 0;		  // garder l'ancien etat des couleur
 volatile uint8_t etat_couleur = 0;				  // les etats pour les couleurs
 volatile uint8_t blue_button_clicked = 0;		  // button bleu
 volatile uint8_t white_button_clicked = 0;		  // is white button
-volatile uint8_t partie_gagnee = 0;	// booleen pour savoir si la partie est gagnee
-volatile uint8_t partie_perdu = 0; // booleen si la partie est perdu
+volatile uint8_t partie_gagnee = 0;				  // booleen pour savoir si la partie est gagnee
+volatile uint8_t partie_perdu = 0;				  // booleen si la partie est perdu
 
 //*************************************************************************************//
 
@@ -132,10 +132,6 @@ void change_couleur_RGB()
 {
 	if (timecount % random_interval_user == 0)
 	{
-		// srand(timecount);
-		// int alea = rand() % 3;
-		//  Clearing colors bits
-		//printf(" (etat couleur : %d , %ld) ", etat_couleur, random_interval_user);
 		if (ancien_etat_couleur != etat_couleur)
 		{
 			CLEAR_BIT(GPIOA.ODR, 8); // set red at 0
@@ -191,8 +187,6 @@ void verifie_etat_couleur()
 	else if (val < 10)
 	{
 		etat_couleur = 3; // tout allumer
-		if (debut_partie!=0)
-			partie_gagnee = 1;
 	}
 }
 
@@ -259,10 +253,11 @@ void lancer_buzzer()
 
 /**
  * @brief Le buzzer de gain sonne a une frequence du interval led rouge / 2 (2 fois plus rapide)
- * 
+ *
  */
-void buzzer_gain(){
-	if (partie_gagnee && (timecount % (random_interval_red_leds/2) == 0))
+void buzzer_gain()
+{
+	if (partie_gagnee && (timecount % (random_interval_red_leds / 2) == 0))
 	{
 		TOGGLE_BIT(GPIOB.ODR, 9);
 	}
@@ -370,13 +365,13 @@ void turn_red_leds_off()
  * @return int
  */
 int get_random_nb()
-{
-	srand(timecount);
-	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN;
+{													   // retourne un nombre aléatoire servant de fréquence de clignotement pour les différentes leds
+	srand(timecount);								   // initialisation du générateur de nombre pseudo-aléatoires
+	return (rand() % RAND_NUM_MAX + 1) + RAND_NUM_MIN; // nombre aléatoire entre 50 et 800
 }
 
 void toggle_red_leds()
-{
+{ // on fait clignoter les 4 leds red en même temps
 	if (timecount % random_interval_red_leds == 0)
 	{
 		TOGGLE_BIT(GPIOA.ODR, 4);
@@ -435,7 +430,7 @@ uint8_t is_white_button_pressed()
 //*************************************************************************************//
 
 //*************************************************************************************//
-// INIT_USART
+// INIT_USART (non utilisé ici)
 //
 // Initialisation de l'USART
 //*************************************************************************************//
@@ -452,7 +447,7 @@ void init_USART()
 //*************************************************************************************//
 
 //*************************************************************************************//
-// FONCTIONS AFFICHAGES
+// FONCTIONS AFFICHAGES (non utilisées ici)
 //
 //*************************************************************************************//
 
@@ -489,7 +484,7 @@ char _getc()
 
 void maj_chronometre()
 {
-	if (debut_partie != 0 && (timecount % 1000 == 0))
+	if (debut_partie != 0 && (timecount % 1000 == 0)) // toutes les secondes
 	{
 		if (chronometre == 1)
 		{
@@ -499,7 +494,7 @@ void maj_chronometre()
 		{
 			printf("%ld,", chronometre);
 		}
-		chronometre -= 1;
+		chronometre -= 1; // on décremente le chronomètre de 1
 	}
 }
 
@@ -525,17 +520,14 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 * cf les fichiers de compilation et d'édition de lien
 	 * pour plus de détails.
 	 */
-	timecount++;
 
-	toggle_red_leds();
-	verifie_etat_couleur();
-	lancer_buzzer();
-	//buzzer_gain();
-	change_couleur_RGB();
+	timecount++; // on augmente le timer de la clock de 1
 
-	// printf("\n --> etat couleur : %d\n", etat_couleur);
-
-	maj_chronometre();
+	toggle_red_leds();		// clignotement des 4 leds red
+	verifie_etat_couleur(); // on vérifie l'état de la led RGB
+	lancer_buzzer();		// tick sonore du buzzer
+	change_couleur_RGB();	// mise à jour des couleurs de la led RGB
+	maj_chronometre();		// mise à jour du chronomètre
 }
 
 //*************************************************************************************//
@@ -559,7 +551,7 @@ void on_blue_button_click(int value)
 	{
 		if (!blue_button_clicked)
 		{
-			random_interval_user += value;
+			random_interval_user += value; // on diminue la fréquence de clignotement de la led user -= value
 			blue_button_clicked = 1;
 		}
 	}
@@ -583,7 +575,7 @@ void on_white_button_click(int value)
 	{
 		if (!white_button_clicked)
 		{
-			random_interval_user += value;
+			random_interval_user += value; // on augmente la fréquence de clignotement de la led user += value
 			white_button_clicked = 1;
 		}
 	}
@@ -604,49 +596,41 @@ void on_white_button_click(int value)
  * @brief On regroupe tous les inits dans une seule fonction
  *
  */
-void init_general()
+void general_init()
 {
-	// turn_red_leds_off();
-
-	systick_init(1000); // une fois chaque millisecond
-
-	init_red_leds();
-
-	init_RGB();
-
-	init_buzzer();
-
-	init_white_button();
-
-	init_blue_button();
-
-	init_switch();
+	systick_init(1000);	 // une fois chaque milliseconde
+	init_red_leds();	 // initialisation des 4 leds red
+	init_RGB();			 // initialisation de la led user RGB
+	init_buzzer();		 // initialisation du buzzer
+	init_white_button(); // initialisation du bouton blanc sur la carte fille (shield)
+	init_blue_button();	 // initialisation du bouton bleu sur la carte mère (nucleo)
+	init_switch();		 // initialisation des switchs
 }
 
 void choix_mode_du_jeux()
 {
 	if (check_switch_1())
 	{
-		duree_partie = 30000;
+		duree_partie = 30000; // la partie dure 30 sec
 	}
 	else if (check_switch_2())
 	{
-		duree_partie = 20000;
+		duree_partie = 20000; // la partie dure 20 sec
 	}
 	else if (check_switch_3())
 	{
-		duree_partie = 15000;
+		duree_partie = 15000; // la partie dure 15 sec
 	}
 	else if (check_switch_4())
 	{
-		duree_partie = 10000;
+		duree_partie = 10000; // la partie dure 10 sec
 	}
 	else
 	{
-		duree_partie = DUREE_PARTIE;
+		duree_partie = DUREE_PARTIE; // la partie dure 25 sec = durée par defaut
 	}
-	printf("--> %ld //", duree_partie);
-	chronometre = duree_partie / 1000;
+	printf("Duration : %lds\r\n", duree_partie / 1000);
+	chronometre = duree_partie / 1000; // on initialise le chronometre
 }
 
 //*************************************************************************************//
@@ -661,25 +645,30 @@ void reset_game()
 	nb_blue_button_pressed = 0;
 	debut_partie = 0;
 	fin_partie = 0;
-	etat_couleur = 3; // tous les leds sont allumer
-	// choix_mode_du_jeux(); // cette fonction modifie chronometre et duree de partie
-	//chronometre = DUREE_PARTIE_SEC;
-	// choix_mode_du_jeux();
-	srand(timecount); // On commence par initialiser le générateur de nombre pseudo-aléatoires.
+	partie_gagnee = 0;
+	etat_couleur = 3;
+	random_interval_red_leds = 0;
+	random_interval_user = 0;
 }
 
-void verifie_fin_de_jeu()
+int8_t fin_du_jeu()
 {
-	if (etat_couleur == 3) {
-		// cas ou je jeu est gagnez 
-		random_interval_user = random_interval_red_leds;
+	if (etat_couleur == 3) // si la led user RGB est dans l'etat 3 alors on a gagné la partie
+	{
+		// random_interval_user = random_interval_red_leds;
+		partie_gagnee = 1;
 		fin_partie = 1;
-		debut_partie = 0;
+		return 1; // on termine la partie
 	}
-	else if (timecount == debut_partie + duree_partie)
+	else if (timecount == debut_partie + duree_partie) // si on atteint la limite du temps
 	{
 		fin_partie = 1;
-		debut_partie = 0; // on reset la partie ici
+		partie_gagnee = 0;
+		return 1; // on termine la partie
+	}
+	else
+	{
+		return 0; // sinon on continue la partie
 	}
 }
 
@@ -705,57 +694,52 @@ int main(void)
 	printf("----------------------------------------------\r\n");
 	printf("Press the blue button twice to start\r\n");
 
-	init_general();
+	general_init(); // initialisation (global) de tous les registres necessaires
 
-	while (1)
+	while (1) // on tourne dans le vide
 	{
 
-		if (is_blue_button_pressed())
+		if (is_blue_button_pressed()) // tant que l'on a pas appuyé deux fois sur le bouton bleu
 		{
 			nb_blue_button_pressed += 1;
 			if (nb_blue_button_pressed == 1)
-				random_interval_red_leds = get_random_nb(); // initilaiser ici pour eviter qu'ils soit les memes
+				random_interval_red_leds = get_random_nb(); // on génère une fréquence aléatoire pour la 4 red leds
 			while (is_blue_button_pressed())
 				;
 		}
 		// La fonction ci dessous fait maintenant l'incrementation du "nb_blue_button_pressed"
 
-		if (nb_blue_button_pressed == 2)
+		if (nb_blue_button_pressed == 2) // on démarre la partie lorsque on a appuyé deux fois sur le bouton bleu
 		{
-			// Choix du mode du jeu
-			choix_mode_du_jeux();
-			// remit srand dans reset game
 
-			debut_partie = timecount;
+			choix_mode_du_jeux(); // on récupère le niveau de la partie
 
-			//random_interval_red_leds = get_random_nb();
+			debut_partie = timecount; // on récupère un tick du timer pour le début de la partie
 
-			random_interval_user = get_random_nb(); // instead of 500
+			random_interval_user = get_random_nb(); // on génère une fréquence aléatoire pour la led user RGB
 
-			printf("Random interval = %ld\r\n", random_interval_red_leds);
-
-			while (!fin_partie)
+			while (!fin_du_jeu()) // on tourne tant que la fonction 'fin_du_jeu' renvoie pas 1
 			{
-				on_blue_button_click(+10);	// clignotte plus lentement
-				on_white_button_click(-10); // clignotte plus rapidement
-				//verifie_etat_couleur();
-				//toggle_red_leds();
-				//change_couleur_RGB();
-				verifie_fin_de_jeu();
+				on_blue_button_click(+10);	// on augmente la fréquence de clignotement de la led user RGB
+				on_white_button_click(-10); // on diminue la fréquence de clignotement de la led user RGB
 			}
 
-			while (partie_gagnee) {
-				//toggle_red_leds();
-				//change_couleur_RGB();
-				buzzer_gain();
+			if (partie_gagnee) // si la partie est gagnée
+			{
+				printf("\r\nYou WON!!!\r\n");
+				TOGGLE_BIT(GPIOA.ODR, 9);
+			}
+			else // si la partie est perdue
+			{
+				printf("\r\nYou LOST...\r\n");
+				TOGGLE_BIT(GPIOA.ODR, 8);
 			}
 
-			printf("\r\nPartie terminée !\r\n");
+			turn_red_leds_off(); // on eteint la 4 red leds
+
 			printf("----------------------------------------------\r\n");
 			printf("Press the blue button twice to start\r\n");
-			reset_game();
-			break;
-			// end_game();
+			reset_game(); // on réinitialise toutes les variables nécessaires pour jouer une nouvelle partie
 		}
 	}
 
