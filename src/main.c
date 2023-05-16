@@ -59,7 +59,7 @@ volatile uint8_t blue_button_clicked = 0;		  // button bleu
 volatile uint8_t white_button_clicked = 0;		  // is white button
 volatile uint8_t partie_gagnee = 0;				  // booleen pour savoir si la partie est gagnee
 volatile uint8_t partie_perdu = 0;				  // booleen si la partie est perdu
-volatile uint32_t timer = 0;
+volatile uint32_t timer_fin_de_jeu = 0; 					  // timer pour la fin du jeu
 
 //*************************************************************************************//
 
@@ -523,7 +523,10 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 */
 
 	timecount++; // on augmente le timer de la clock de 1
-	if (timer>0) timer--;
+	if (timer_fin_de_jeu>0) {
+		timer_fin_de_jeu-=1;
+		TOGGLE_BIT(GPIOB.ODR, 9);
+	}
 
 	if (fin_partie) return;
 
@@ -745,10 +748,9 @@ int main(void)
 				CLEAR_BIT(GPIOA.ODR, 10);
 			}
 
-			timer = 3000;
-			while (timer!=0){
-				printf("Boucle\n");
-				TOGGLE_BIT(GPIOB.ODR,9);
+			timer_fin_de_jeu = 2000;
+			while (timer_fin_de_jeu!=0){
+				;
 			}
 
 			CLEAR_BIT(GPIOA.ODR,8);
