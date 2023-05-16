@@ -59,6 +59,7 @@ volatile uint8_t blue_button_clicked = 0;		  // button bleu
 volatile uint8_t white_button_clicked = 0;		  // is white button
 volatile uint8_t partie_gagnee = 0;				  // booleen pour savoir si la partie est gagnee
 volatile uint8_t partie_perdu = 0;				  // booleen si la partie est perdu
+volatile uint32_t timer = 0;
 
 //*************************************************************************************//
 
@@ -245,7 +246,7 @@ void lancer_buzzer()
 	{
 		toggle_buzzer(150);
 	}
-	else if (chronometre == 0)
+	else if (chronometre == 0 )
 	{
 		toggle_buzzer(1);
 	}
@@ -522,6 +523,9 @@ void __attribute__((interrupt)) SysTick_Handler()
 	 */
 
 	timecount++; // on augmente le timer de la clock de 1
+	if (timer>0) timer--;
+
+	if (fin_partie) return;
 
 	toggle_red_leds();		// clignotement des 4 leds red
 	verifie_etat_couleur(); // on vérifie l'état de la led RGB
@@ -634,7 +638,7 @@ void choix_mode_du_jeux()
 }
 
 //*************************************************************************************//
-
+/* condition */
 //*************************************************************************************//
 // FONCTIONS JEUX
 //
@@ -724,17 +728,32 @@ int main(void)
 				on_white_button_click(-10); // on diminue la fréquence de clignotement de la led user RGB
 			}
 
+			turn_red_leds_off();
+
 			if (partie_gagnee) // si la partie est gagnée
 			{
 				printf("\r\nYou WON!!!\r\n");
-				TOGGLE_BIT(GPIOA.ODR, 9);
+				CLEAR_BIT(GPIOA.ODR, 8);
+				SET_BIT(GPIOA.ODR, 9);
+				CLEAR_BIT(GPIOA.ODR, 8);
 			}
 			else // si la partie est perdue
 			{
 				printf("\r\nYou LOST...\r\n");
-				TOGGLE_BIT(GPIOA.ODR, 8);
+				SET_BIT(GPIOA.ODR, 8);
+				CLEAR_BIT(GPIOA.ODR, 9);
+				CLEAR_BIT(GPIOA.ODR, 10);
 			}
 
+			timer = 3000;
+			while (timer!=0){
+				printf("Boucle\n");
+				TOGGLE_BIT(GPIOB.ODR,9);
+			}
+
+			CLEAR_BIT(GPIOA.ODR,8);
+			CLEAR_BIT(GPIOA.ODR,9);
+			turn_buzzer_off();
 			turn_red_leds_off(); // on eteint la 4 red leds
 
 			printf("----------------------------------------------\r\n");
