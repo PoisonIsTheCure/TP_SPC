@@ -198,14 +198,14 @@ void verifie_etat_couleur()
 
 void init_buzzer()
 {
-	RCC.AHB1ENR |= 0x2; // on initialise la clock de GPIOB
-						// GPIOB.MODER &= 0xFFF3FFFF;     // on met le moder en input mode (change 1 octet qui comprend le n9 en 00)
+	RCC.AHB1ENR |= 0x2; // clock de GPIOB initialisee
+	// Enable Output mode :
 	SET_BIT(GPIOB.MODER, 2 * 9);
 	CLEAR_BIT(GPIOB.MODER, (2 * 9) + 1);
-	// GPIOB.OTYPER &= ~(0x1 << 9); // on met le 9eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 9
+	// GPIOB OTYPER in push pull mode
 	CLEAR_BIT(GPIOB.OTYPER, 9);
-	GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 , donc high speed mode
-	GPIOB.PUPDR &= 0xFFF3FFFF;	 // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 9
+	GPIOB.OSPEEDR |= 0x03 << 18; // on met le 18-19ime bits a 11 ,high speed mode
+	GPIOB.PUPDR &= 0xFFF3FFFF;	 // no pull-up / no pull-down mode
 }
 
 void turn_buzzer_on()
@@ -397,7 +397,7 @@ void init_blue_button()
 	GPIOC.MODER &= 0xF3FFFFFF;	  // on met le moder en input mode (change l octet qui comprend le n13 en 00)
 	GPIOC.OTYPER &= ~(0x1 << 13); // on met le 13eme bit de output type a 0 (c.a.d en push-pull mode)/ on decide de modifier le 13
 	GPIOC.OSPEEDR |= 0x03 << 26;  // on met le 26-27ime bits a 11 , donc high speed mode
-	GPIOC.PUPDR &= 0xF3FFFFF;	  // pull-up / pull-down / on fait un and avec des 1 en modifaint seulement le port 13, RMp189
+	GPIOC.PUPDR &= 0xF3FFFFF;	  // // no pull-up / no pull-down mode, RMp189
 }
 
 uint8_t is_blue_button_pressed()
