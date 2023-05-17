@@ -210,13 +210,11 @@ void init_buzzer()
 
 void turn_buzzer_on()
 {
-	// GPIOB.ODR |= 0x00000100;
 	SET_BIT(GPIOB.ODR, 9);
 }
 
 void turn_buzzer_off()
 { // on éteint toutes les leds (de 4 à 7)
-	// GPIOB.ODR &= 0xFFFFFDFF;
 	CLEAR_BIT(GPIOB.ODR, 9);
 }
 
